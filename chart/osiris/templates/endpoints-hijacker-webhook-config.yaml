@@ -1,0 +1,48 @@
+{{- $ca := genCA "osiris-endpoints-hijacker-ca" 3650 }}
+{{- $cn := printf "%s-endpoints-hijacker" (include "osiris.fullname" .) }}
+{{- $altName1 := printf "%s-endpoints-hijacker.%s" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName2 := printf "%s-endpoints-hijacker.%s.svc" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName3 := printf "%s-endpoints-hijacker.%s.svc.cluster" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName4 := printf "%s-endpoints-hijacker.%s.svc.cluster.local" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $cert := genSignedCert $cn nil (list $altName1 $altName2 $altName3 $altName4) 3650 $ca }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "osiris.fullname" . }}-endpoints-hijacker-cert
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-endpoints-hijacker
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  tls.crt: {{ b64enc $cert.Cert }}
+  tls.key: {{ b64enc $cert.Key }}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "osiris.fullname" . }}-endpoints-hijacker
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-endpoints-hijacker
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+webhooks:
+- name: endpoints-hijacker.osiris.kubernetes.io
+  clientConfig:
+    service:
+      namespace: {{ .Release.Namespace }}
+      name: {{ include "osiris.fullname" . }}-endpoints-hijacker
+      path: "/mutate"
+    caBundle: {{ b64enc $ca.Cert }}
+  rules:
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    resources:
+    - services
+    operations:
+    - CREATE
+    - UPDATE
+  failurePolicy: Ignore

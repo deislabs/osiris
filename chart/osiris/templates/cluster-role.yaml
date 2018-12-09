@@ -1,0 +1,40 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ include "osiris.fullname" . }}
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  - pods
+  - services
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - ""
+  resources:
+  - endpoints
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+- apiGroups:
+  - apps
+  resources:
+  - deployments
+  verbs:
+  - get
+  - list
+  - watch
+  - update
+  - patch

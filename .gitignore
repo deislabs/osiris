@@ -1,0 +1,7 @@
+dist/
+test/
+
+# VS Code files
+.vscode/
+
+coverage.txt

@@ -1,0 +1,66 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osiris.fullname" . }}-endpoints-controller
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-endpoints-controller
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osiris.name" . }}-endpoints-controller
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "osiris.name" . }}-endpoints-controller
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ include "osiris.fullname" . }}
+      containers:
+      - name: endpoints-controller
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+        command:
+        - /osiris/bin/osiris
+        args:
+        - --logtostderr=true
+        - endpoints-controller
+        env:
+        - name: OSIRIS_NAMESPACE
+          value: {{ .Release.Namespace }}
+        - name: ACTIVATOR_POD_LABEL_SELECTOR_KEY
+          value: app.kubernetes.io/name
+        - name: ACTIVATOR_POD_LABEL_SELECTOR_VALUE
+          value: {{ include "osiris.name" . }}-activator
+        ports:
+        - name: healthz
+          containerPort: 5000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        resources:
+{{ toYaml .Values.endpointsController.resources | indent 12 }}
+    {{- with .Values.endpointsController.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.endpointsController.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.endpointsController.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

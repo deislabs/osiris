@@ -1,0 +1,56 @@
+{{- $ca := genCA "osiris-proxy-injector-ca" 3650 }}
+{{- $cn := printf "%s-proxy-injector" (include "osiris.fullname" .) }}
+{{- $altName1 := printf "%s-proxy-injector.%s" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName2 := printf "%s-proxy-injector.%s.svc" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName3 := printf "%s-proxy-injector.%s.svc.cluster" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $altName4 := printf "%s-proxy-injector.%s.svc.cluster.local" (include "osiris.fullname" .) .Release.Namespace }}
+{{- $cert := genSignedCert $cn nil (list $altName1 $altName2 $altName3 $altName4) 3650 $ca }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ include "osiris.fullname" . }}-proxy-injector-cert
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+data:
+  tls.crt: {{ b64enc $cert.Cert }}
+  tls.key: {{ b64enc $cert.Key }}
+---
+apiVersion: admissionregistration.k8s.io/v1beta1
+kind: MutatingWebhookConfiguration
+metadata:
+  name: {{ include "osiris.fullname" . }}-proxy-injector
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+webhooks:
+- name: proxy-injector.osiris.kubernetes.io
+  clientConfig:
+    service:
+      namespace: {{ .Release.Namespace }}
+      name: {{ include "osiris.fullname" . }}-proxy-injector
+      path: "/mutate"
+    caBundle: {{ b64enc $ca.Cert }}
+  rules:
+  - apiGroups:
+    - apps
+    apiVersions:
+    - v1
+    resources:
+    - deployments
+    operations:
+    - CREATE
+    - UPDATE
+  - apiGroups:
+    - ""
+    apiVersions:
+    - v1
+    resources:
+    - pods
+    operations:
+    - CREATE
+  failurePolicy: Ignore

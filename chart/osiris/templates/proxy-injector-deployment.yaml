@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osiris.fullname" . }}-proxy-injector
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.proxyInjector.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        releaseRevision: "{{ .Release.Revision }}"
+    spec:
+      serviceAccountName: {{ include "osiris.fullname" . }}
+      containers:
+      - name: proxy-injector
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+        command:
+        - /osiris/bin/osiris
+        args:
+        - --logtostderr=true
+        - proxy-injector
+        env:
+        - name: TLS_CERT_FILE
+          value: /osiris/cert/tls.crt
+        - name: TLS_KEY_FILE
+          value: /osiris/cert/tls.key
+        - name: PROXY_IMAGE
+          value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        - name: PROXY_IMAGE_PULL_POLICY
+          value: {{ .Values.image.pullPolicy }}
+        ports:
+        - name: https
+          containerPort: 5000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: https
+            scheme: HTTPS
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: https
+            scheme: HTTPS
+            path: /healthz
+        volumeMounts:
+        - name: cert
+          mountPath: /osiris/cert
+          readOnly: true
+        resources:
+{{ toYaml .Values.proxyInjector.resources | indent 12 }}
+    {{- with .Values.proxyInjector.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.proxyInjector.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.proxyInjector.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+      volumes:
+      - name: cert
+        secret:
+          secretName: {{ include "osiris.fullname" . }}-proxy-injector-cert

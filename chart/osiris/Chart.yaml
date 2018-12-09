@@ -1,0 +1,16 @@
+apiVersion: v1
+name: osiris
+description: A general purpose, scale-to-zero component for Kubernetes
+version: v0.0.1 # This gets automatically overridden by our release process
+appVersion: v0.0.1 # This gets automatically overridden by our release process
+home: https://github.com/deislabs/osiris
+sources:
+- https://github.com/deislabs/osiris
+maintainers:
+- name: Yaron Schneider
+  email: yaronsc@microsoft.com
+- name: Kent Rancourt
+  email: kent.rancourt@microsoft.com
+- name: Jeremy Rickard
+  email: jeremy.rickard@microsoft.com
+tillerVersion: ">=2.11.0"

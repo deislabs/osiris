@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osiris.fullname" . }}-activator
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-activator
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: {{ .Values.activator.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osiris.name" . }}-activator
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "osiris.name" . }}-activator
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ include "osiris.fullname" . }}
+      containers:
+      - name: activator
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+        command:
+        - /osiris/bin/osiris
+        args:
+        - --logtostderr=true
+        - activator
+        ports:
+        - name: proxy
+          containerPort: 5000
+          protocol: TCP
+        - name: healthz
+          containerPort: 5001
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        resources:
+{{ toYaml .Values.activator.resources | indent 12 }}
+    {{- with .Values.activator.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.activator.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.activator.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

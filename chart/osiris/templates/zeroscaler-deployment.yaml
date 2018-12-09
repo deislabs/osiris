@@ -1,0 +1,62 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "osiris.fullname" . }}-zeroscaler
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-zeroscaler
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "osiris.name" . }}-zeroscaler
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ include "osiris.name" . }}-zeroscaler
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      serviceAccountName: {{ include "osiris.fullname" . }}
+      containers:
+      - name: zeroscaler
+        image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 1000
+        command:
+        - /osiris/bin/osiris
+        args:
+        - --logtostderr=true
+        - zeroscaler
+        env:
+        - name: METRICS_CHECK_INTERVAL
+          value: {{ .Values.zeroscaler.metricsCheckInterval | quote }}
+        ports:
+        - name: healthz
+          containerPort: 5000
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        readinessProbe:
+          httpGet:
+            port: healthz
+            path: /healthz
+        resources:
+{{ toYaml .Values.zeroscaler.resources | indent 12 }}
+    {{- with .Values.zeroscaler.nodeSelector }}
+      nodeSelector:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.zeroscaler.affinity }}
+      affinity:
+{{ toYaml . | indent 8 }}
+    {{- end }}
+    {{- with .Values.zeroscaler.tolerations }}
+      tolerations:
+{{ toYaml . | indent 8 }}
+    {{- end }}

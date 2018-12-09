@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "osiris.fullname" . }}-proxy-injector
+  labels:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+    helm.sh/chart: {{ include "osiris.chart" . }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/managed-by: {{ .Release.Service }}
+spec:
+  type: ClusterIP
+  ports:
+  - port: 443
+    targetPort: https
+    protocol: TCP
+    name: https
+  selector:
+    app.kubernetes.io/name: {{ include "osiris.name" . }}-proxy-injector
+    app.kubernetes.io/instance: {{ .Release.Name }}

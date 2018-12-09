@@ -1,0 +1,163 @@
+version: 2
+
+base-go-job: &base-go-job
+  docker:
+    - image: quay.io/deis/lightweight-docker-go:v0.5.0
+  environment:
+    SKIP_DOCKER: true
+  working_directory: /go/src/github.com/deislabs/osiris
+
+base-docker-job: &base-docker-job
+  docker:
+    - image: quay.io/deis/acr-publishing-tools:v0.1.0
+  environment:
+    SKIP_DOCKER: true
+  working_directory: /go/src/github.com/deislabs/osiris
+
+log-into-docker-registry-step: &log-into-docker-registry-step
+  name: Log into Docker Registry
+  command: docker login -u "${DOCKER_REGISTRY_USERNAME}" -p "${DOCKER_REGISTRY_PASSWORD}" ${DOCKER_REGISTRY}
+
+log-into-azure-step: &log-into-azure-step
+  name: Log into Azure
+  command: az login --service-principal -u "${AZURE_SP_APP_ID}" -p "${AZURE_SP_KEY}" --tenant "${AZURE_SP_TENANT}"
+
+jobs:
+  lint:
+    <<: *base-go-job
+    steps:
+      - checkout
+      - run:
+          name: Lint Go Code
+          command: make lint
+  lint-chart:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Lint Helm Chart
+          command: make lint-chart
+  verify-vendored-code:
+    <<: *base-go-job
+    steps:
+      - checkout
+      - run:
+          name: Verify Vendored Code
+          command: make verify-vendored-code
+  test-unit:
+    <<: *base-go-job
+    steps:
+      - checkout
+      - run:
+          name: Run Unit Tests
+          command: make test-unit
+  build:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          name: Build Binaries & Docker Image
+          command: make build
+  publish-rc-images:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          <<: *log-into-docker-registry-step
+      - run:
+          name: Publish Release Candidate Images to ACR
+          command: make push-rc
+  publish-release-images:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          <<: *log-into-docker-registry-step
+      - run:
+          name: Publish Release Images to ACR
+          command: REL_VERSION="${CIRCLE_TAG}" make push-release
+  publish-rc-chart:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          <<: *log-into-azure-step
+      - run:
+          name: Publish Release Candidate Chart to ACR
+          command: make publish-rc-chart
+  publish-release-chart:
+    <<: *base-docker-job
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run:
+          <<: *log-into-azure-step
+      - run:
+          name: Publish Release Chart to ACR
+          command: make publish-release-chart
+
+base-pr-step: &base-pr-step
+  filters:
+    branches:
+      ignore: master
+
+base-master-step: &base-master-step
+  filters:
+    branches:
+      only: master
+
+base-release-step: &base-release-step
+  filters:
+    branches:
+      ignore: /.*/
+    tags:
+      only: /v[0-9]+(\.[0-9]+)*(\-.+)?/
+
+workflows:
+  version: 2
+  build-and-test-pr:
+    jobs:
+      - lint:
+          <<: *base-pr-step
+      - lint-chart:
+          <<: *base-pr-step
+      - verify-vendored-code:
+          <<: *base-pr-step
+      - test-unit:
+          <<: *base-pr-step
+      - build:
+          <<: *base-pr-step
+  build-and-test-master:
+    jobs:
+      - lint:
+          <<: *base-master-step
+      - lint-chart:
+          <<: *base-master-step
+      - verify-vendored-code:
+          <<: *base-master-step
+      - test-unit:
+          <<: *base-master-step
+      - publish-rc-images:
+          <<: *base-master-step
+          requires:
+            - lint
+            - lint-chart
+            - verify-vendored-code
+            - test-unit
+      - publish-rc-chart:
+          <<: *base-master-step
+          requires:
+            - publish-rc-images
+  release:
+    jobs:
+      - publish-release-images:
+          <<: *base-release-step
+      - publish-release-chart:
+          <<: *base-release-step
+          requires:
+            - publish-release-images
