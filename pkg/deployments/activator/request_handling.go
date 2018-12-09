@@ -113,7 +113,7 @@ func (a *activator) handleRequest(
 			a.returnError(w, http.StatusServiceUnavailable)
 			return
 		}
-		resp, err := http.DefaultClient.Do(req)
+		resp, err := a.httpClient.Do(req)
 		if err != nil {
 			glog.Errorf("Error proxying request to reactivated application: %s", err)
 			a.returnError(w, http.StatusServiceUnavailable)
