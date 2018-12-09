@@ -170,15 +170,16 @@ func (h *hijacker) handleRequest(w http.ResponseWriter, r *http.Request) {
 					Message: err.Error(),
 				},
 			}
-		}
-		glog.Infof("AdmissionResponse: patch=%v\n", string(patchBytes))
-		admissionResponse = &v1beta1.AdmissionResponse{
-			Allowed: true,
-			Patch:   patchBytes,
-			PatchType: func() *v1beta1.PatchType {
-				pt := v1beta1.PatchTypeJSONPatch
-				return &pt
-			}(),
+		} else {
+			glog.Infof("AdmissionResponse: patch=%v\n", string(patchBytes))
+			admissionResponse = &v1beta1.AdmissionResponse{
+				Allowed: true,
+				Patch:   patchBytes,
+				PatchType: func() *v1beta1.PatchType {
+					pt := v1beta1.PatchTypeJSONPatch
+					return &pt
+				}(),
+			}
 		}
 	}
 
