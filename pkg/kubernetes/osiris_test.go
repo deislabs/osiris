@@ -65,7 +65,7 @@ func TestResourceIsOsirisEnabled(t *testing.T) {
 			actual := ResourceIsOsirisEnabled(test.annotations)
 			if actual != test.expectedResult {
 				t.Errorf(
-					"expected GetMinReplicas to return %t, but got %t",
+					"expected ResourceIsOsirisEnabled to return %t, but got %t",
 					test.expectedResult, actual)
 			}
 		})

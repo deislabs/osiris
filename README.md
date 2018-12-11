@@ -159,7 +159,7 @@ Get the External IP of the `hello-osiris` service once it appears:
 kubectl get service hello-osiris -o jsonpath='{.status.loadBalancer.ingress[*].ip}'
 ```
 
-Point your browser to `"http://<EXTERNAL-IP>:4000"`, and verify that
+Point your browser to `"http://<EXTERNAL-IP>"`, and verify that
 `hello-osiris` is serving traffic.
 
 After about 2.5 minutes, the Osiris-enabled deployment should scale to zero
