@@ -20,6 +20,8 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ include "osiris.fullname" . }}
+      imagePullSecrets:
+      - name: {{ include "osiris.fullname" . }}
       containers:
       - name: endpoints-controller
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
