@@ -21,6 +21,8 @@ spec:
         releaseRevision: "{{ .Release.Revision }}"
     spec:
       serviceAccountName: {{ include "osiris.fullname" . }}
+      imagePullSecrets:
+      - name: {{ include "osiris.fullname" . }}
       containers:
       - name: proxy-injector
         image: {{ .Values.image.repository }}:{{ .Values.image.tag }}
