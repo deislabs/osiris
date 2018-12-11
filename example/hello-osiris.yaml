@@ -41,7 +41,7 @@ spec:
     spec:
       containers:
       - name: hello-osiris
-        image: tariq181290/hello-osiris:0.2.0
+        image: tariq181290/hello-osiris:0.2.1
         ports:
         - containerPort: 4000
         - containerPort: 5000
