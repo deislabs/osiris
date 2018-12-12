@@ -20,6 +20,11 @@ func runProxy(ctx context.Context) {
 		glog.Fatalf("Error retrieving proxy configuration: %s", err)
 	}
 
+	proxy, err := proxy.NewProxy(cfg)
+	if err != nil {
+		glog.Fatalf("Error initializing proxy: %s", err)
+	}
+
 	// Run the proxy
-	proxy.NewProxy(cfg).Run(ctx)
+	proxy.Run(ctx)
 }

@@ -25,7 +25,7 @@ type proxy struct {
 	healthzAndMetricsSvr *http.Server
 }
 
-func NewProxy(cfg Config) Proxy {
+func NewProxy(cfg Config) (Proxy, error) {
 	var requestCount uint64
 	healthzAndMetricsMux := http.NewServeMux()
 	p := &proxy{
@@ -38,14 +38,19 @@ func NewProxy(cfg Config) Proxy {
 		},
 	}
 	for proxyPort, appPort := range cfg.PortMappings {
+		singlePortProxy, err :=
+			newSinglePortProxy(proxyPort, appPort, p.requestCount)
+		if err != nil {
+			return nil, err
+		}
 		p.singlePortProxies = append(
 			p.singlePortProxies,
-			newSinglePortProxy(proxyPort, appPort, p.requestCount),
+			singlePortProxy,
 		)
 	}
 	healthzAndMetricsMux.HandleFunc("/metrics", p.handleMetricsRequest)
 	healthzAndMetricsMux.HandleFunc("/healthz", healthz.HandleHealthCheckRequest)
-	return p
+	return p, nil
 }
 
 func (p *proxy) Run(ctx context.Context) {

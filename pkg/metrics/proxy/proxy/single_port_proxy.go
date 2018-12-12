@@ -3,8 +3,9 @@ package proxy
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -13,29 +14,33 @@ import (
 )
 
 type singlePortProxy struct {
-	targetAddress string
-	appPort       int
-	requestCount  *uint64
-	srv           *http.Server
+	appPort             int
+	requestCount        *uint64
+	srv                 *http.Server
+	proxyRequestHandler *httputil.ReverseProxy
 }
 
 func newSinglePortProxy(
 	proxyPort int,
 	appPort int,
 	requestCount *uint64,
-) *singlePortProxy {
+) (*singlePortProxy, error) {
+	targetURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", appPort))
+	if err != nil {
+		return nil, err
+	}
 	mux := http.NewServeMux()
 	s := &singlePortProxy{
-		targetAddress: fmt.Sprintf("http://localhost:%d", appPort),
-		appPort:       appPort,
-		requestCount:  requestCount,
+		appPort:      appPort,
+		requestCount: requestCount,
 		srv: &http.Server{
 			Addr:    fmt.Sprintf(":%d", proxyPort),
 			Handler: mux,
 		},
+		proxyRequestHandler: httputil.NewSingleHostReverseProxy(targetURL),
 	}
 	mux.HandleFunc("/", s.handleRequest)
-	return s
+	return s, nil
 }
 
 func (s *singlePortProxy) run(ctx context.Context) {
@@ -90,32 +95,5 @@ func (s *singlePortProxy) handleRequest(
 		atomic.AddUint64(s.requestCount, 1)
 	}
 
-	req, err := http.NewRequest(r.Method, s.targetAddress, r.Body)
-	if err != nil {
-		glog.Errorf("Error creating outbound request: %s", err)
-		s.returnError(w, http.StatusInternalServerError)
-		return
-	}
-
-	resp, err := http.DefaultClient.Do(req)
-	if err != nil {
-		glog.Errorf("Error executing outbound request: %s", err)
-		s.returnError(w, http.StatusInternalServerError)
-		return
-	}
-
-	body, _ := ioutil.ReadAll(resp.Body)
-	w.WriteHeader(resp.StatusCode)
-	if _, err := w.Write(body); err != nil {
-		glog.Errorf("Error writing response body: %s", err)
-	} else {
-		glog.Info("Request sent")
-	}
-}
-
-func (s *singlePortProxy) returnError(w http.ResponseWriter, statusCode int) {
-	w.WriteHeader(statusCode)
-	if _, err := w.Write([]byte{}); err != nil {
-		glog.Errorf("Error writing response body: %s", err)
-	}
+	s.proxyRequestHandler.ServeHTTP(w, r)
 }
