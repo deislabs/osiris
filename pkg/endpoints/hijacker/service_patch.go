@@ -21,7 +21,7 @@ import (
 func getServicePatchOperations(
 	svc *corev1.Service,
 ) ([]kubernetes.PatchOperation, error) {
-	const osirisEnabledAnnotationPath = "/metadata/annotations/osiris.kubernetes.io~1selector" // nolint: lll
+	const osirisEnabledAnnotationPath = "/metadata/annotations/osiris.deislabs.io~1selector" // nolint: lll
 
 	patchOps := []kubernetes.PatchOperation{}
 
@@ -47,7 +47,7 @@ func getServicePatchOperations(
 		}
 		encodedSelector := base64.StdEncoding.EncodeToString(selectorJSONBytes)
 		var op string
-		if _, ok := svc.Annotations["osiris.kubernetes.io/selector"]; ok {
+		if _, ok := svc.Annotations["osiris.deislabs.io/selector"]; ok {
 			op = "replace"
 		} else {
 			op = "add"
@@ -62,7 +62,7 @@ func getServicePatchOperations(
 	}
 
 	// Service is NOT Osiris-enabled... make it so...
-	if _, ok := svc.Annotations["osiris.kubernetes.io/selector"]; ok {
+	if _, ok := svc.Annotations["osiris.deislabs.io/selector"]; ok {
 		patchOps = append(patchOps, kubernetes.PatchOperation{
 			Op:   "remove",
 			Path: osirisEnabledAnnotationPath,
