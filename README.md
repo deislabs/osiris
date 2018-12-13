@@ -105,7 +105,7 @@ metadata:
   namespace: my-aoo
   name: my-app
   annotations:
-    osiris.kubernetes.io/enabled: "true"
+    osiris.deislabs.io/enabled: "true"
 spec:
   replicas: 1
   selector:
@@ -135,8 +135,8 @@ metadata:
   namespace: my-namespace
   name: my-app
   annotations:
-    osiris.kubernetes.io/enabled: "true"
-    osiris.kubernetes.io/deployment: my-app
+    osiris.deislabs.io/enabled: "true"
+    osiris.deislabs.io/deployment: my-app
 spec:
   selector:
     app: my-app

@@ -11,42 +11,42 @@ func TestResourceIsOsirisEnabled(t *testing.T) {
 		{
 			name: "map with osiris enabled entry and value 1",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "1",
+				"osiris.deislabs.io/enabled": "1",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value true",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "true",
+				"osiris.deislabs.io/enabled": "true",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value on",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "on",
+				"osiris.deislabs.io/enabled": "on",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value y",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "y",
+				"osiris.deislabs.io/enabled": "y",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value yes",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "yes",
+				"osiris.deislabs.io/enabled": "yes",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with no osiris enabled entry ",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/notenabled": "yes",
+				"osiris.deislabs.io/notenabled": "yes",
 			},
 			expectedResult: false,
 		},
@@ -54,7 +54,7 @@ func TestResourceIsOsirisEnabled(t *testing.T) {
 		{
 			name: "map with osiris enabled entry and invalid value",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/enabled": "yee",
+				"osiris.deislabs.io/enabled": "yee",
 			},
 			expectedResult: false,
 		},
@@ -82,21 +82,21 @@ func TestGetMinReplicas(t *testing.T) {
 		{
 			name: "map with min replicas entry",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/minReplicas": "3",
+				"osiris.deislabs.io/minReplicas": "3",
 			},
 			expectedResult: 3,
 		},
 		{
 			name: "map with no min replicas entry",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/notminReplicas": "3",
+				"osiris.deislabs.io/notminReplicas": "3",
 			},
 			expectedResult: 1,
 		},
 		{
 			name: "map with invalid min replicas entry",
 			annotations: map[string]string{
-				"osiris.kubernetes.io/minReplicas": "invalid",
+				"osiris.deislabs.io/minReplicas": "invalid",
 			},
 			expectedResult: 1,
 		},

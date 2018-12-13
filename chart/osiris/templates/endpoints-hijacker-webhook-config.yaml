@@ -28,7 +28,7 @@ metadata:
     app.kubernetes.io/instance: {{ .Release.Name }}
     app.kubernetes.io/managed-by: {{ .Release.Service }}
 webhooks:
-- name: endpoints-hijacker.osiris.kubernetes.io
+- name: endpoints-hijacker.osiris.deislabs.io
   clientConfig:
     service:
       namespace: {{ .Release.Namespace }}
