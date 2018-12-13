@@ -2,7 +2,11 @@ package activator
 
 import (
 	"fmt"
+	"net/http/httputil"
+	"net/url"
 	"regexp"
+
+	"github.com/golang/glog"
 )
 
 // nolint: lll
@@ -57,11 +61,23 @@ func (a *activator) updateIndex() {
 			}
 			// For every port...
 			for _, port := range svc.Spec.Ports {
+				targetURL, err :=
+					url.Parse(fmt.Sprintf("http://%s:%d", svc.Spec.ClusterIP, port.Port))
+				if err != nil {
+					glog.Errorf(
+						"Error parsing target URL for service %s in namespace %s: %s",
+						svc.Name,
+						svc.Namespace,
+						err,
+					)
+					continue
+				}
 				app := &app{
-					namespace:      svc.Namespace,
-					serviceName:    svc.Name,
-					deploymentName: deploymentName,
-					targetHost:     fmt.Sprintf("%s:%d", svc.Spec.ClusterIP, port.Port),
+					namespace:           svc.Namespace,
+					serviceName:         svc.Name,
+					deploymentName:      deploymentName,
+					targetURL:           targetURL,
+					proxyRequestHandler: httputil.NewSingleHostReverseProxy(targetURL),
 				}
 				// If the port is 80, also index by hostname/IP sans port number...
 				if port.Port == 80 {

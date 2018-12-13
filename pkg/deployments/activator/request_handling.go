@@ -1,8 +1,6 @@
 package activator
 
 import (
-	"fmt"
-	"io/ioutil"
 	"net/http"
 
 	"github.com/golang/glog"
@@ -105,27 +103,8 @@ func (a *activator) handleRequest(
 	// or time out.
 	select {
 	case <-deploymentActivation.successCh:
-		targetURL := fmt.Sprintf("http://%s%s", app.targetHost, r.RequestURI)
-		glog.Infof("Passing request on to: %s", targetURL)
-		req, err := http.NewRequest(r.Method, targetURL, r.Body)
-		if err != nil {
-			glog.Errorf("Error creating request to reactivated application: %s", err)
-			a.returnError(w, http.StatusServiceUnavailable)
-			return
-		}
-		resp, err := a.httpClient.Do(req)
-		if err != nil {
-			glog.Errorf("Error proxying request to reactivated application: %s", err)
-			a.returnError(w, http.StatusServiceUnavailable)
-			return
-		}
-		defer resp.Body.Close()
-		w.WriteHeader(resp.StatusCode)
-		respBody, _ := ioutil.ReadAll(resp.Body)
-		if _, err := w.Write(respBody); err != nil {
-			glog.Errorf("Error writing response body: %s", err)
-			return
-		}
+		glog.Infof("Passing request on to: %s", app.targetURL)
+		app.proxyRequestHandler.ServeHTTP(w, r)
 	case <-deploymentActivation.timeoutCh:
 		a.returnError(w, http.StatusServiceUnavailable)
 	}
