@@ -36,7 +36,7 @@ func newEndpointsManager(
 	svc *corev1.Service,
 	c *controller,
 ) (*endpointsManager, error) {
-	encodedPodSelector, ok := svc.Annotations["osiris.kubernetes.io/selector"]
+	encodedPodSelector, ok := svc.Annotations["osiris.deislabs.io/selector"]
 	if !ok {
 		return nil, fmt.Errorf(
 			"Selector not found for service %s in namespace %s",

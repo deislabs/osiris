@@ -5,9 +5,9 @@ metadata:
   labels:
     app: hello-osiris
   annotations:
-    osiris.kubernetes.io/enabled: "true"
-    osiris.kubernetes.io/deployment: hello-osiris
-    osiris.kubernetes.io/loadBalancerHostname: hello-osiris.contoso.io
+    osiris.deislabs.io/enabled: "true"
+    osiris.deislabs.io/deployment: hello-osiris
+    osiris.deislabs.io/loadBalancerHostname: hello-osiris.contoso.io
 spec:
   type: LoadBalancer
   ports:
@@ -27,8 +27,8 @@ metadata:
   labels:
     app: hello-osiris
   annotations:
-    osiris.kubernetes.io/enabled: "true"
-    osiris.kubernetes.io/minReplicas: "1"
+    osiris.deislabs.io/enabled: "true"
+    osiris.deislabs.io/minReplicas: "1"
 spec:
   replicas: 1
   selector:

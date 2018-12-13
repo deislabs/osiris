@@ -8,7 +8,7 @@ import (
 // ResourceIsOsirisEnabled checks the annotations to see if the
 // kube resource is enabled for osiris or not.
 func ResourceIsOsirisEnabled(annotations map[string]string) bool {
-	enabled, ok := annotations["osiris.kubernetes.io/enabled"]
+	enabled, ok := annotations["osiris.deislabs.io/enabled"]
 	if !ok {
 		return false
 	}
@@ -24,7 +24,7 @@ func ResourceIsOsirisEnabled(annotations map[string]string) bool {
 // from the annotations. If it fails to do so, it returns the default value
 // instead.
 func GetMinReplicas(annotations map[string]string, defaultVal int32) int32 {
-	val, ok := annotations["osiris.kubernetes.io/minReplicas"]
+	val, ok := annotations["osiris.deislabs.io/minReplicas"]
 	if !ok {
 		return defaultVal
 	}

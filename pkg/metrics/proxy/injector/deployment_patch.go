@@ -45,17 +45,17 @@ func (i *injector) getDeploymentPatchOperations(
 			})
 		}
 
-		// Add or update "osiris.kubernetes.io/enabled"
+		// Add or update "osiris.deislabs.io/enabled"
 		var op string
 		if _, ok :=
-			deployment.Spec.Template.Annotations["osiris.kubernetes.io/enabled"]; ok {
+			deployment.Spec.Template.Annotations["osiris.deislabs.io/enabled"]; ok {
 			op = "replace"
 		} else {
 			op = "add"
 		}
 		patchOps = append(patchOps, kubernetes.PatchOperation{
 			Op:    op,
-			Path:  "/spec/template/metadata/annotations/osiris.kubernetes.io~1enabled", // nolint: lll
+			Path:  "/spec/template/metadata/annotations/osiris.deislabs.io~1enabled", // nolint: lll
 			Value: "true",
 		})
 
@@ -70,12 +70,12 @@ func (i *injector) getDeploymentPatchOperations(
 		return nil, nil
 	}
 
-	// Annotations exists, and "osiris.kubernetes.io/enabled" exists-- remove it
+	// Annotations exists, and "osiris.deislabs.io/enabled" exists-- remove it
 	if _, ok :=
-		deployment.Spec.Template.Annotations["osiris.kubernetes.io/enabled"]; ok {
+		deployment.Spec.Template.Annotations["osiris.deislabs.io/enabled"]; ok {
 		patchOps = append(patchOps, kubernetes.PatchOperation{
 			Op:   "remove",
-			Path: "/spec/template/metadata/annotations/osiris.kubernetes.io~1enabled",
+			Path: "/spec/template/metadata/annotations/osiris.deislabs.io~1enabled",
 		})
 	}
 

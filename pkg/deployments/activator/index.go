@@ -19,7 +19,7 @@ func (a *activator) updateIndex() {
 	appsByHost := map[string]*app{}
 	for _, svc := range a.services {
 		if deploymentName, ok :=
-			svc.Annotations["osiris.kubernetes.io/deployment"]; ok {
+			svc.Annotations["osiris.deislabs.io/deployment"]; ok {
 			svcDNSName :=
 				fmt.Sprintf("%s.%s.svc.cluster.local", svc.Name, svc.Namespace)
 			// Determine the "default" ingress port. When a request arrives at the
@@ -31,7 +31,7 @@ func (a *activator) updateIndex() {
 			var ingressDefaultPort string
 			// Start by seeing if a default port was explicitly specified.
 			if ingressDefaultPort, ok =
-				svc.Annotations["osiris.kubernetes.io/ingressDefaultPort"]; !ok {
+				svc.Annotations["osiris.deislabs.io/ingressDefaultPort"]; !ok {
 				// If not specified, try to infer it.
 				// If there's only one port, that's it.
 				if len(svc.Spec.Ports) == 1 {
