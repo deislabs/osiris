@@ -45,7 +45,7 @@ inactivity causes the zeroscaler to take the application offline again.
 
 ### Scaling to zero and the HPA
 
-Osiris is designed to work alongside the [Horizontal Pod Autscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) and
+Osiris is designed to work alongside the [Horizontal Pod Autoscaler](https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/) and
 is not meant to replace it-- it will scale your pods from n to 0 and from 0 to
 n, where n is a configurable minimum number of replicas (one, by default). All
 _other_ scaling decisions may be delegated to an HPA, if desired.
