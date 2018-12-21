@@ -11,8 +11,8 @@ import (
 
 // nolint: lll
 var (
-	loadBalancerHostnameAnnotationRegex = regexp.MustCompile(`^osiris\.io/loadBalancerHostname(?:-\d+)?$`)
-	ingressHostnameAnnotationRegex      = regexp.MustCompile(`^osiris\.io/ingressHostname(?:-\d+)?$`)
+	loadBalancerHostnameAnnotationRegex = regexp.MustCompile(`^osiris\.deislabs\.io/loadBalancerHostname(?:-\d+)?$`)
+	ingressHostnameAnnotationRegex      = regexp.MustCompile(`^osiris\.deislabs\.io/ingressHostname(?:-\d+)?$`)
 )
 
 // updateIndex builds an index that maps all the possible ways a service can be
@@ -92,7 +92,7 @@ func (a *activator) updateIndex() {
 						}
 					}
 					// Honor all annotations of the form
-					// ^osiris\.io/loadBalancerHostname(?:-\d+)?$
+					// ^osiris\.deislabs\.io/loadBalancerHostname(?:-\d+)?$
 					for k, v := range svc.Annotations {
 						if loadBalancerHostnameAnnotationRegex.MatchString(k) {
 							appsByHost[v] = app
@@ -101,7 +101,7 @@ func (a *activator) updateIndex() {
 				}
 				if fmt.Sprintf("%d", port.Port) == ingressDefaultPort {
 					// Honor all annotations of the form
-					// ^osiris\.io/ingressHostname(?:-\d+)?$
+					// ^osiris\.deislabs\.io/ingressHostname(?:-\d+)?$
 					for k, v := range svc.Annotations {
 						if ingressHostnameAnnotationRegex.MatchString(k) {
 							appsByHost[v] = app
@@ -126,7 +126,7 @@ func (a *activator) updateIndex() {
 					}
 				}
 				// Honor all annotations of the form
-				// ^osiris\.io/loadBalancerHostname(?:-\d+)?$
+				// ^osiris\.deislabs\.io/loadBalancerHostname(?:-\d+)?$
 				for k, v := range svc.Annotations {
 					if loadBalancerHostnameAnnotationRegex.MatchString(k) {
 						appsByHost[fmt.Sprintf("%s:%d", v, port.Port)] = app
