@@ -22,16 +22,16 @@ const port = 5000
 
 // Hijacker is an interface for a component that handles webhook requests
 // for patching Osiris-enabled services in a manner that will permit the
-// Osiris endpoints contoller to manage service endpoints
+// Osiris endpoints controller to manage service endpoints
 type Hijacker interface {
-	// Run causes the webhopok server to serve requests. This function will not
+	// Run causes the webhook server to serve requests. This function will not
 	// return until the context it has been passed expires or is canceled.
 	Run(ctx context.Context)
 }
 
 // hijacker is a component that handles webhook requests for patching
 // Osiris-enabled services in a manner that will permit the Osiris endpoints
-// contoller to manage service endpoints
+// controller to manage service endpoints
 type hijacker struct {
 	config       Config
 	deserializer runtime.Decoder
@@ -40,7 +40,7 @@ type hijacker struct {
 
 // NewHijacker returns a new component that handles webhook requests for
 // patching Osiris-enabled services in a manner that will permit the Osiris
-// endpoints contoller to manage service endpoints
+// endpoints controller to manage service endpoints
 func NewHijacker(config Config) Hijacker {
 	mux := http.NewServeMux()
 
@@ -61,7 +61,7 @@ func NewHijacker(config Config) Hijacker {
 	return h
 }
 
-// Run causes the webhopok server to serve requests. This function will not
+// Run causes the webhook server to serve requests. This function will not
 // return until the context it has been passed expires or is canceled.
 func (h *hijacker) Run(ctx context.Context) {
 	doneCh := make(chan struct{})
