@@ -25,14 +25,6 @@
 #   unused-packages = true
 
 [[constraint]]
-  name = "github.com/prometheus/client_golang"
-  version = "0.9.0-pre1"
-
-[[constraint]]
-  branch = "addlog"
-  name = "github.com/prometheus/common"
-
-[[constraint]]
   name = "k8s.io/kubernetes"
   version = "1.12.2"
 
