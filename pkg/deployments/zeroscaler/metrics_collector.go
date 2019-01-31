@@ -114,8 +114,8 @@ func (m *metricsCollector) syncDeletedAppPod(obj interface{}) {
 }
 
 func (m *metricsCollector) collectMetrics(ctx context.Context) {
-	requestCountsByProxy := map[string]uint64{}
-	var lastTotalRequestCount uint64
+	connectionStatsByProxy := map[string]metrics.ProxyConnectionStats{}
+	var lastOpenedConnectionCount uint64
 	ticker := time.NewTicker(m.metricsCheckInterval)
 	defer ticker.Stop()
 	for {
@@ -142,18 +142,18 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 				go func() {
 					defer scrapeWG.Done()
 					// Get the results
-					prc, ok := m.scrape(url)
+					pcs, ok := m.scrape(url)
 					if !ok {
 						mustNotDecide = true
 					}
-					requestCountsByProxy[prc.ProxyID] = prc.RequestCount
+					connectionStatsByProxy[pcs.ProxyID] = pcs
 				}()
 			}
 			m.appPodsLock.Unlock()
 			scrapeWG.Wait()
-			var totalRequestCount uint64
-			for _, requestCount := range requestCountsByProxy {
-				totalRequestCount += requestCount
+			var openedConnectionCount uint64
+			for _, pcs := range connectionStatsByProxy {
+				openedConnectionCount += pcs.ConnectionsOpened
 			}
 			select {
 			case <-timer.C:
@@ -163,10 +163,10 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 			default:
 			}
 			timer.Stop()
-			if !mustNotDecide && totalRequestCount == lastTotalRequestCount {
+			if !mustNotDecide && openedConnectionCount == lastOpenedConnectionCount {
 				m.scaleToZero()
 			}
-			lastTotalRequestCount = totalRequestCount
+			lastOpenedConnectionCount = openedConnectionCount
 		case <-ctx.Done():
 			return
 		}
@@ -188,13 +188,13 @@ func getMetricsPort(pod *corev1.Pod) (int32, bool) {
 
 func (m *metricsCollector) scrape(
 	target string,
-) (metrics.ProxyRequestCount, bool) {
-	prc := metrics.ProxyRequestCount{}
+) (metrics.ProxyConnectionStats, bool) {
+	pcs := metrics.ProxyConnectionStats{}
 	// Requests made with this client time out after 2 seconds
 	resp, err := m.httpClient.Get(target)
 	if err != nil {
 		glog.Errorf("Error requesting metrics from %s: %s", target, err)
-		return prc, false
+		return pcs, false
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != 200 {
@@ -204,7 +204,7 @@ func (m *metricsCollector) scrape(
 			resp.StatusCode,
 			target,
 		)
-		return prc, false
+		return pcs, false
 	}
 	bodyBytes, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -213,17 +213,17 @@ func (m *metricsCollector) scrape(
 			target,
 			err,
 		)
-		return prc, false
+		return pcs, false
 	}
-	if err := json.Unmarshal(bodyBytes, &prc); err != nil {
+	if err := json.Unmarshal(bodyBytes, &pcs); err != nil {
 		glog.Errorf(
 			"Error umarshaling metrics request response from %s: %s",
 			target,
 			err,
 		)
-		return prc, false
+		return pcs, false
 	}
-	return prc, true
+	return pcs, true
 }
 
 func (m *metricsCollector) scaleToZero() {

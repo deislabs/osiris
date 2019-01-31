@@ -15,7 +15,8 @@ import (
 
 type singlePortProxy struct {
 	appPort             int
-	requestCount        *uint64
+	connectionsOpened   *uint64
+	connectionsClosed   *uint64
 	srv                 *http.Server
 	proxyRequestHandler *httputil.ReverseProxy
 }
@@ -23,7 +24,8 @@ type singlePortProxy struct {
 func newSinglePortProxy(
 	proxyPort int,
 	appPort int,
-	requestCount *uint64,
+	connectionsOpened *uint64,
+	connectionsClosed *uint64,
 ) (*singlePortProxy, error) {
 	targetURL, err := url.Parse(fmt.Sprintf("http://localhost:%d", appPort))
 	if err != nil {
@@ -31,8 +33,9 @@ func newSinglePortProxy(
 	}
 	mux := http.NewServeMux()
 	s := &singlePortProxy{
-		appPort:      appPort,
-		requestCount: requestCount,
+		appPort:           appPort,
+		connectionsOpened: connectionsOpened,
+		connectionsClosed: connectionsClosed,
 		srv: &http.Server{
 			Addr:    fmt.Sprintf(":%d", proxyPort),
 			Handler: mux,
@@ -92,8 +95,12 @@ func (s *singlePortProxy) handleRequest(
 	// are not instrumented by the sidecar proxy.
 	userAgent := r.Header.Get("User-Agent")
 	if !strings.Contains(userAgent, "kube-probe") {
-		atomic.AddUint64(s.requestCount, 1)
+		atomic.AddUint64(s.connectionsOpened, 1)
 	}
 
 	s.proxyRequestHandler.ServeHTTP(w, r)
+
+	if !strings.Contains(userAgent, "kube-probe") {
+		atomic.AddUint64(s.connectionsClosed, 1)
+	}
 }

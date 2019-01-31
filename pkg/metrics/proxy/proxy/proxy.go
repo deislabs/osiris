@@ -20,17 +20,19 @@ type Proxy interface {
 
 type proxy struct {
 	proxyID              string
-	requestCount         *uint64
+	connectionsOpened    *uint64
+	connectionsClosed    *uint64
 	singlePortProxies    []*singlePortProxy
 	healthzAndMetricsSvr *http.Server
 }
 
 func NewProxy(cfg Config) (Proxy, error) {
-	var requestCount uint64
+	var connectionsOpened, connectionsClosed uint64
 	healthzAndMetricsMux := http.NewServeMux()
 	p := &proxy{
 		proxyID:           uuid.NewV4().String(),
-		requestCount:      &requestCount,
+		connectionsOpened: &connectionsOpened,
+		connectionsClosed: &connectionsClosed,
 		singlePortProxies: []*singlePortProxy{},
 		healthzAndMetricsSvr: &http.Server{
 			Addr:    fmt.Sprintf(":%d", cfg.MetricsAndHealthPort),
@@ -39,7 +41,12 @@ func NewProxy(cfg Config) (Proxy, error) {
 	}
 	for proxyPort, appPort := range cfg.PortMappings {
 		singlePortProxy, err :=
-			newSinglePortProxy(proxyPort, appPort, p.requestCount)
+			newSinglePortProxy(
+				proxyPort,
+				appPort,
+				p.connectionsOpened,
+				p.connectionsClosed,
+			)
 		if err != nil {
 			return nil, err
 		}
@@ -94,17 +101,18 @@ func (p *proxy) Run(ctx context.Context) {
 }
 
 func (p *proxy) handleMetricsRequest(w http.ResponseWriter, _ *http.Request) {
-	prc := metrics.ProxyRequestCount{
-		ProxyID:      p.proxyID,
-		RequestCount: atomic.LoadUint64(p.requestCount),
+	pcs := metrics.ProxyConnectionStats{
+		ProxyID:           p.proxyID,
+		ConnectionsOpened: atomic.LoadUint64(p.connectionsOpened),
+		ConnectionsClosed: atomic.LoadUint64(p.connectionsClosed),
 	}
-	prcBytes, err := json.Marshal(prc)
+	pcsBytes, err := json.Marshal(pcs)
 	if err != nil {
 		glog.Errorf("Error marshaling metrics request response: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if _, err := w.Write(prcBytes); err != nil {
+	if _, err := w.Write(pcsBytes); err != nil {
 		glog.Errorf("Error writing metrics request response body: %s", err)
 	}
 }
