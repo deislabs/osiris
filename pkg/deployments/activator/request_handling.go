@@ -1,30 +1,19 @@
 package activator
 
 import (
-	"net/http"
+	"fmt"
 
 	"github.com/golang/glog"
 )
 
-func (a *activator) handleRequest(
-	w http.ResponseWriter,
-	r *http.Request,
-) {
-	defer r.Body.Close()
-
-	glog.Infof(
-		"Request received for for host %s with URI %s",
-		r.Host,
-		r.RequestURI,
-	)
+func (a *activator) activateAndWait(hostname string) (string, int, error) {
+	glog.Infof("Request received for for host %s", hostname)
 
 	a.indicesLock.RLock()
-	app, ok := a.appsByHost[r.Host]
+	app, ok := a.appsByHost[hostname]
 	a.indicesLock.RUnlock()
 	if !ok {
-		glog.Infof("No deployment found for host %s", r.Host)
-		a.returnError(w, http.StatusNotFound)
-		return
+		return "", 0, fmt.Errorf("No deployment found for host %s", hostname)
 	}
 
 	glog.Infof(
@@ -87,14 +76,12 @@ func (a *activator) handleRequest(
 			}()
 		}()
 		if err != nil {
-			glog.Errorf(
+			return "", 0, fmt.Errorf(
 				"Error activating deployment %s in namespace %s: %s",
 				app.deploymentName,
 				app.namespace,
 				err,
 			)
-			a.returnError(w, http.StatusServiceUnavailable)
-			return
 		}
 	}
 
@@ -103,16 +90,13 @@ func (a *activator) handleRequest(
 	// or time out.
 	select {
 	case <-deploymentActivation.successCh:
-		glog.Infof("Passing request on to: %s", app.targetURL)
-		app.proxyRequestHandler.ServeHTTP(w, r)
+		return app.targetHost, app.targetPort, nil
 	case <-deploymentActivation.timeoutCh:
-		a.returnError(w, http.StatusServiceUnavailable)
-	}
-}
-
-func (a *activator) returnError(w http.ResponseWriter, statusCode int) {
-	w.WriteHeader(statusCode)
-	if _, err := w.Write([]byte{}); err != nil {
-		glog.Errorf("Error writing response body: %s", err)
+		return "", 0, fmt.Errorf(
+			"Timed out waiting for activation of deployment %s in namespace %s: %s",
+			app.deploymentName,
+			app.namespace,
+			err,
+		)
 	}
 }

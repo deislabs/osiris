@@ -21,10 +21,11 @@ func runActivator(ctx context.Context) {
 		glog.Fatalf("Error building kubernetes clientset: %s", err)
 	}
 
+	activator, err := deployments.NewActivator(client)
 	if err != nil {
-		glog.Fatalf("Error retrieving activator configuration: %s", err)
+		glog.Fatalf("Error initializing activator: %s", err)
 	}
 
 	// Run the activator
-	deployments.NewActivator(client).Run(ctx)
+	activator.Run(ctx)
 }
