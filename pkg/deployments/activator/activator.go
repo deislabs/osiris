@@ -9,6 +9,7 @@ import (
 
 	"github.com/deislabs/osiris/pkg/healthz"
 	k8s "github.com/deislabs/osiris/pkg/kubernetes"
+	"github.com/deislabs/osiris/pkg/net/tcp"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -30,13 +31,13 @@ type activator struct {
 	indicesLock               sync.RWMutex
 	deploymentActivations     map[string]*deploymentActivation
 	deploymentActivationsLock sync.Mutex
-	srv                       *http.Server
+	dynamicProxyListenAddrStr string
+	dynamicProxy              tcp.DynamicProxy
 	httpClient                *http.Client
 }
 
-func NewActivator(kubeClient kubernetes.Interface) Activator {
+func NewActivator(kubeClient kubernetes.Interface) (Activator, error) {
 	const port = 5000
-	mux := http.NewServeMux()
 	a := &activator{
 		kubeClient: kubeClient,
 		servicesInformer: k8s.ServicesIndexInformer(
@@ -51,17 +52,29 @@ func NewActivator(kubeClient kubernetes.Interface) Activator {
 			nil,
 			nil,
 		),
-		services:      map[string]*corev1.Service{},
-		nodeAddresses: map[string]struct{}{},
-		srv: &http.Server{
-			Addr:    fmt.Sprintf(":%d", port),
-			Handler: mux,
-		},
-		appsByHost:            map[string]*app{},
-		deploymentActivations: map[string]*deploymentActivation{},
+		dynamicProxyListenAddrStr: fmt.Sprintf(":%d", port),
+		services:                  map[string]*corev1.Service{},
+		nodeAddresses:             map[string]struct{}{},
+		appsByHost:                map[string]*app{},
+		deploymentActivations:     map[string]*deploymentActivation{},
 		httpClient: &http.Client{
 			Timeout: time.Minute * 1,
 		},
+	}
+	var err error
+	a.dynamicProxy, err = tcp.NewDynamicProxy(
+		a.dynamicProxyListenAddrStr,
+		func(r *http.Request) (string, int, error) {
+			return a.activateAndWait(r.Host)
+		},
+		nil,
+		func(serverName string) (string, int, error) {
+			return a.activateAndWait(fmt.Sprintf("%s:tls", serverName))
+		},
+		nil,
+	)
+	if err != nil {
+		return nil, err
 	}
 	a.servicesInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: a.syncService,
@@ -77,8 +90,7 @@ func NewActivator(kubeClient kubernetes.Interface) Activator {
 		},
 		DeleteFunc: a.syncDeletedNode,
 	})
-	mux.HandleFunc("/", a.handleRequest)
-	return a
+	return a, nil
 }
 
 func (a *activator) Run(ctx context.Context) {
@@ -97,10 +109,15 @@ func (a *activator) Run(ctx context.Context) {
 		cancel()
 	}()
 	go func() {
-		if err := a.runServer(ctx); err != nil {
-			glog.Errorf("Server error: %s", err)
-			cancel()
+		glog.Infof(
+			"Activator server is listening on %s, proxying all deactivated, "+
+				"Osiris-enabled applications",
+			a.dynamicProxyListenAddrStr,
+		)
+		if err := a.dynamicProxy.ListenAndServe(ctx); err != nil {
+			glog.Errorf("Error listening and serving: %s", err)
 		}
+		cancel()
 	}()
 	healthz.RunServer(ctx, 5001)
 	cancel()

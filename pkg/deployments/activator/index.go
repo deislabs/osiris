@@ -2,11 +2,7 @@ package activator
 
 import (
 	"fmt"
-	"net/http/httputil"
-	"net/url"
 	"regexp"
-
-	"github.com/golang/glog"
 )
 
 // nolint: lll
@@ -59,25 +55,46 @@ func (a *activator) updateIndex() {
 					}
 				}
 			}
+			// Determine the "default" TLS port. When a TLS-secured request arrives at
+			// the activator, the TLS SNI header won't indicate a port. After
+			// activation is complete, the activator needs to forward the request to
+			// the service (which is now backed by application endpoints). It's
+			// important to know which service port to forward the request to.
+			var tlsDefaultPort string
+			if tlsDefaultPort, ok =
+				svc.Annotations["osiris.deislabs.io/tlsPort"]; !ok {
+				// If not specified, try to infer it.
+				// If there's only one port, that's it.
+				if len(svc.Spec.Ports) == 1 {
+					tlsDefaultPort = fmt.Sprintf("%d", svc.Spec.Ports[0].Port)
+				} else {
+					// Look for a port named "https". If found, that's it. While we're
+					// looping also look to see if the servie exposes port 443. If no port
+					// is named "https", we'll assume 443 (if exposed) is the default
+					// port.
+					var foundPort443 bool
+					for _, port := range svc.Spec.Ports {
+						if port.Name == "https" {
+							tlsDefaultPort = fmt.Sprintf("%d", port.Port)
+							break
+						}
+						if port.Port == 443 {
+							foundPort443 = true
+						}
+					}
+					if tlsDefaultPort == "" && foundPort443 {
+						ingressDefaultPort = "443"
+					}
+				}
+			}
 			// For every port...
 			for _, port := range svc.Spec.Ports {
-				targetURL, err :=
-					url.Parse(fmt.Sprintf("http://%s:%d", svc.Spec.ClusterIP, port.Port))
-				if err != nil {
-					glog.Errorf(
-						"Error parsing target URL for service %s in namespace %s: %s",
-						svc.Name,
-						svc.Namespace,
-						err,
-					)
-					continue
-				}
 				app := &app{
-					namespace:           svc.Namespace,
-					serviceName:         svc.Name,
-					deploymentName:      deploymentName,
-					targetURL:           targetURL,
-					proxyRequestHandler: httputil.NewSingleHostReverseProxy(targetURL),
+					namespace:      svc.Namespace,
+					serviceName:    svc.Name,
+					deploymentName: deploymentName,
+					targetHost:     svc.Spec.ClusterIP,
+					targetPort:     int(port.Port),
 				}
 				// If the port is 80, also index by hostname/IP sans port number...
 				if port.Port == 80 {
@@ -108,6 +125,19 @@ func (a *activator) updateIndex() {
 						}
 					}
 				}
+				if fmt.Sprintf("%d", port.Port) == tlsDefaultPort {
+					// Now index by hostname:tls. Note that there's no point in indexing
+					// by IP:tls because SNI server name will never be an IP.
+					// kube-dns name
+					appsByHost[fmt.Sprintf("%s:tls", svcDNSName)] = app
+					// Honor all annotations of the form
+					// ^osiris\.deislabs\.io/loadBalancerHostname(?:-\d+)?$
+					for k, v := range svc.Annotations {
+						if loadBalancerHostnameAnnotationRegex.MatchString(k) {
+							appsByHost[fmt.Sprintf("%s:tls", v)] = app
+						}
+					}
+				}
 				// Now index by hostname/IP:port...
 				// kube-dns name
 				appsByHost[fmt.Sprintf("%s:%d", svcDNSName, port.Port)] = app
@@ -119,7 +149,7 @@ func (a *activator) updateIndex() {
 						appsByHost[fmt.Sprintf("%s:%d", loadBalancerIngress.IP, port.Port)] = app // nolint: lll
 					}
 				}
-				// Node honame/IP:node-port
+				// Node hostname/IP:node-port
 				if port.NodePort != 0 {
 					for nodeAddress := range a.nodeAddresses {
 						appsByHost[fmt.Sprintf("%s:%d", nodeAddress, port.NodePort)] = app

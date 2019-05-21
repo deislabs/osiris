@@ -1,6 +1,8 @@
 run:
   concurrency: 1
   deadline: 2m
+  skip-files:
+  - pkg/net/http/httputil/reverseproxy*
 
 linters:
   disable-all: true

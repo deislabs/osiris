@@ -52,6 +52,9 @@ jobs:
       - run:
           name: Run Unit Tests
           command: make test-unit
+      - run:
+          name: Upload Coverage Report
+          command: bash <(curl -s https://codecov.io/bash)
   build:
     <<: *base-docker-job
     steps:

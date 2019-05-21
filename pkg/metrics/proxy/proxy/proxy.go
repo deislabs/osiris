@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
 	"github.com/deislabs/osiris/pkg/healthz"
 	"github.com/deislabs/osiris/pkg/metrics"
+	"github.com/deislabs/osiris/pkg/net/tcp"
 	"github.com/golang/glog"
 	uuid "github.com/satori/go.uuid"
 )
@@ -20,32 +22,57 @@ type Proxy interface {
 
 type proxy struct {
 	proxyID              string
-	requestCount         *uint64
-	singlePortProxies    []*singlePortProxy
+	connectionsOpened    *uint64
+	connectionsClosed    *uint64
+	dynamicProxies       []tcp.DynamicProxy
 	healthzAndMetricsSvr *http.Server
 }
 
 func NewProxy(cfg Config) (Proxy, error) {
-	var requestCount uint64
+	var connectionsOpened, connectionsClosed uint64
 	healthzAndMetricsMux := http.NewServeMux()
 	p := &proxy{
 		proxyID:           uuid.NewV4().String(),
-		requestCount:      &requestCount,
-		singlePortProxies: []*singlePortProxy{},
+		connectionsOpened: &connectionsOpened,
+		connectionsClosed: &connectionsClosed,
+		dynamicProxies:    []tcp.DynamicProxy{},
 		healthzAndMetricsSvr: &http.Server{
 			Addr:    fmt.Sprintf(":%d", cfg.MetricsAndHealthPort),
 			Handler: healthzAndMetricsMux,
 		},
 	}
-	for proxyPort, appPort := range cfg.PortMappings {
-		singlePortProxy, err :=
-			newSinglePortProxy(proxyPort, appPort, p.requestCount)
+
+	for listenPort, targetPort := range cfg.PortMappings {
+		tp := targetPort
+		dynamicProxy, err := tcp.NewDynamicProxy(
+			fmt.Sprintf(":%d", listenPort),
+			func(r *http.Request) (string, int, error) {
+				if !isKubeProbe(r) {
+					atomic.AddUint64(p.connectionsOpened, 1)
+				}
+				return "localhost", tp, nil
+			},
+			func(r *http.Request) error {
+				if !isKubeProbe(r) {
+					atomic.AddUint64(p.connectionsClosed, 1)
+				}
+				return nil
+			},
+			func(string) (string, int, error) {
+				atomic.AddUint64(p.connectionsOpened, 1)
+				return "localhost", tp, nil
+			},
+			func(string) error {
+				atomic.AddUint64(p.connectionsClosed, 1)
+				return nil
+			},
+		)
 		if err != nil {
 			return nil, err
 		}
-		p.singlePortProxies = append(
-			p.singlePortProxies,
-			singlePortProxy,
+		p.dynamicProxies = append(
+			p.dynamicProxies,
+			dynamicProxy,
 		)
 	}
 	healthzAndMetricsMux.HandleFunc("/metrics", p.handleMetricsRequest)
@@ -57,14 +84,17 @@ func (p *proxy) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 
 	// Start proxies for each port
-	for _, spp := range p.singlePortProxies {
-		go func(spp *singlePortProxy) {
-			spp.run(ctx)
+	for _, dp := range p.dynamicProxies {
+		go func(dp tcp.DynamicProxy) {
+			if err := dp.ListenAndServe(ctx); err != nil {
+				glog.Errorf("Error listening and serving: %s", err)
+			}
 			cancel()
-		}(spp)
+		}(dp)
 	}
 
 	doneCh := make(chan struct{})
+	defer close(doneCh)
 
 	go func() {
 		select {
@@ -90,21 +120,25 @@ func (p *proxy) Run(ctx context.Context) {
 	if err != http.ErrServerClosed {
 		glog.Errorf("Error from healthz and metrics server: %s", err)
 	}
-	close(doneCh)
 }
 
 func (p *proxy) handleMetricsRequest(w http.ResponseWriter, _ *http.Request) {
-	prc := metrics.ProxyRequestCount{
-		ProxyID:      p.proxyID,
-		RequestCount: atomic.LoadUint64(p.requestCount),
+	pcs := metrics.ProxyConnectionStats{
+		ProxyID:           p.proxyID,
+		ConnectionsOpened: atomic.LoadUint64(p.connectionsOpened),
+		ConnectionsClosed: atomic.LoadUint64(p.connectionsClosed),
 	}
-	prcBytes, err := json.Marshal(prc)
+	pcsBytes, err := json.Marshal(pcs)
 	if err != nil {
 		glog.Errorf("Error marshaling metrics request response: %s", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	if _, err := w.Write(prcBytes); err != nil {
+	if _, err := w.Write(pcsBytes); err != nil {
 		glog.Errorf("Error writing metrics request response body: %s", err)
 	}
+}
+
+func isKubeProbe(r *http.Request) bool {
+	return strings.Contains(r.Header.Get("User-Agent"), "kube-probe")
 }
