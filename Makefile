@@ -2,7 +2,7 @@
 # Version details                                                              #
 ################################################################################
 
-GIT_VERSION = $(shell git describe --always --abbrev=7 --dirty)
+GIT_VERSION = $(shell git describe --always --abbrev=7 --dirty --match=NeVeRmAtCh)
 
 ifdef REL_VERSION
 	OSIRIS_VERSION := $(REL_VERSION)
@@ -24,18 +24,20 @@ LDFLAGS = -w -X $(BASE_PACKAGE_NAME)/pkg/version.commit=$(GIT_VERSION) \
 ################################################################################
 
 ifneq ($(SKIP_DOCKER),true)
+	PROJECT_ROOT := $(dir $(realpath $(firstword $(MAKEFILE_LIST))))
+
 	DEV_IMAGE := quay.io/deis/lightweight-docker-go:v0.5.0
 	DOCKER_CMD := docker run \
 		-it \
 		--rm \
 		-e SKIP_DOCKER=true \
-		-v $$(pwd):/go/src/$(BASE_PACKAGE_NAME) \
+		-v $(PROJECT_ROOT):/go/src/$(BASE_PACKAGE_NAME) \
 		-w /go/src/$(BASE_PACKAGE_NAME) $(DEV_IMAGE)
 
 	HELM_IMAGE := quay.io/deis/acr-publishing-tools:v0.1.0
 	DOCKER_HELM_CMD := docker run \
 		--rm \
-		-v $$(pwd):/go/src/$(BASE_PACKAGE_NAME) \
+		-v $(PROJECT_ROOT):/go/src/$(BASE_PACKAGE_NAME) \
 		-w /go/src/$(BASE_PACKAGE_NAME) \
 		$(HELM_IMAGE)
 endif
