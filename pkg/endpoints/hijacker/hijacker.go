@@ -200,7 +200,7 @@ func (h *hijacker) handleRequest(w http.ResponseWriter, r *http.Request) {
 			http.StatusInternalServerError,
 		)
 	}
-	glog.Infof("Ready to write reponse ...")
+	glog.Infof("Ready to write response ...")
 	if _, err := w.Write(resp); err != nil {
 		glog.Errorf("Can't write response: %v", err)
 		http.Error(
