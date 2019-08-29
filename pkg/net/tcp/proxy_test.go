@@ -30,6 +30,7 @@ func TestDefaultProxyConnection(t *testing.T) {
 		require.NoError(t, gerr)
 		bytes := make([]byte, 1024)
 		n, gerr := conn.Read(bytes)
+		require.NoError(t, gerr)
 		require.Equal(t, reqBytes, bytes[:n])
 		n, gerr = conn.Write(respBytes)
 		require.NoError(t, gerr)
@@ -63,6 +64,7 @@ func TestDefaultProxyConnection(t *testing.T) {
 
 	bytes := make([]byte, 1024)
 	n, err := clientConn.Read(bytes)
+	require.NoError(t, err)
 	require.Equal(t, respBytes, bytes[:n])
 
 	// Close the connection
