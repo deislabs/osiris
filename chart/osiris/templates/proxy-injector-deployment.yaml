@@ -43,6 +43,8 @@ spec:
           value: {{ .Values.image.repository }}:{{ .Values.image.tag }}
         - name: PROXY_IMAGE_PULL_POLICY
           value: {{ .Values.image.pullPolicy }}
+        - name: IGNORED_PATHS
+          value: {{ .Values.proxyInjector.ignoredPaths | join "," | quote }}
         ports:
         - name: https
           containerPort: 5000

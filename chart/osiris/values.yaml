@@ -61,6 +61,10 @@ proxyInjector:
   nodeSelector: {}
   tolerations: []
   affinity: {}
+  # The list of paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy.
+  # Use cases: /metrics for prometheus metrics, custom healthchecks, ...
+  # Note that the Kubernetes healthcheck is already ignored by default, based on the "kube-probe" user-agent.
+  ignoredPaths: []
 
 endpointsController:
   resources: {}

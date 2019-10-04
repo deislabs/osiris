@@ -127,6 +127,10 @@ func (i *injector) getPodPatchOperations(
 					Name:  "METRICS_AND_HEALTH_PORT",
 					Value: fmt.Sprintf("%d", metricsAndHealthPort),
 				},
+				{
+					Name:  "IGNORED_PATHS",
+					Value: i.config.IgnoredPaths,
+				},
 			},
 			Ports: []corev1.ContainerPort{
 				{
