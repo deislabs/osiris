@@ -113,3 +113,44 @@ func TestGetMinReplicas(t *testing.T) {
 		})
 	}
 }
+
+func TestGetMetricsCheckInterval(t *testing.T) {
+	testcases := []struct {
+		name           string
+		annotations    map[string]string
+		expectedResult int
+	}{
+		{
+			name: "map with metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "60",
+			},
+			expectedResult: 60,
+		},
+		{
+			name: "map with no metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/notmetricsCheckInterval": "60",
+			},
+			expectedResult: 150,
+		},
+		{
+			name: "map with invalid metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "invalid",
+			},
+			expectedResult: 150,
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			actual := GetMetricsCheckInterval(test.annotations, 150)
+			if actual != test.expectedResult {
+				t.Errorf(
+					"expected GetMetricsCheckInterval to return %d, but got %d",
+					test.expectedResult, actual)
+			}
+		})
+	}
+}

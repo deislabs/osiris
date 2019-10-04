@@ -34,3 +34,22 @@ func GetMinReplicas(annotations map[string]string, defaultVal int32) int32 {
 	}
 	return int32(minReplicas)
 }
+
+// GetMetricsCheckInterval gets the interval in which the zeroScaler would
+// repeatedly track the pod http request metrics. The value is the number
+// of seconds of the interval. If it fails to do so, it returns the default
+// value instead.
+func GetMetricsCheckInterval(
+	annotations map[string]string,
+	defaultVal int,
+) int {
+	val, ok := annotations["osiris.deislabs.io/metricsCheckInterval"]
+	if !ok {
+		return defaultVal
+	}
+	metricsCheckInterval, err := strconv.Atoi(val)
+	if err != nil {
+		return defaultVal
+	}
+	return metricsCheckInterval
+}

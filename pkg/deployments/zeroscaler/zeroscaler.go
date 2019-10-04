@@ -131,17 +131,23 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 		if ok {
 			collector.stop()
 		}
+		metricsCheckInterval := k8s.GetMetricsCheckInterval(
+			deployment.Annotations,
+			z.cfg.MetricsCheckInterval,
+		)
 		glog.Infof(
-			"Using new metrics collector for deployment %s in namespace %s",
+			"Using new metrics collector for deployment %s in namespace %s "+
+				"with metrics check interval of %d seconds",
 			deployment.Name,
 			deployment.Namespace,
+			metricsCheckInterval,
 		)
 		collector := newMetricsCollector(
 			z.kubeClient,
 			deployment.Name,
 			deployment.Namespace,
 			selector,
-			time.Duration(z.cfg.MetricsCheckInterval)*time.Second,
+			time.Duration(metricsCheckInterval)*time.Second,
 		)
 		go func() {
 			collector.run(z.ctx)

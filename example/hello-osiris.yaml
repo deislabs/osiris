@@ -45,6 +45,7 @@ metadata:
   annotations:
     osiris.deislabs.io/enabled: "true"
     osiris.deislabs.io/minReplicas: "1"
+    osiris.deislabs.io/metricsCheckInterval: "120" # seconds
 spec:
   replicas: 1
   selector:
