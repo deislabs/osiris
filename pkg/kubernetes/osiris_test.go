@@ -1,6 +1,9 @@
 package kubernetes
 
-import "testing"
+import (
+	"reflect"
+	"testing"
+)
 
 func TestResourceIsOsirisEnabled(t *testing.T) {
 	testcases := []struct {
@@ -108,6 +111,57 @@ func TestGetMinReplicas(t *testing.T) {
 			if actual != test.expectedResult {
 				t.Errorf(
 					"expected GetMinReplicas to return %d, but got %d",
+					test.expectedResult, actual)
+			}
+		})
+	}
+}
+
+func TestGetIgnoredPaths(t *testing.T) {
+	testcases := []struct {
+		name           string
+		annotations    map[string]string
+		expectedResult []string
+	}{
+		{
+			name:           "nil map",
+			annotations:    nil,
+			expectedResult: nil,
+		},
+		{
+			name:           "empty map",
+			annotations:    map[string]string{},
+			expectedResult: nil,
+		},
+		{
+			name: "map with a single ignored path",
+			annotations: map[string]string{
+				"osiris.deislabs.io/ignoredPaths": "/metrics",
+			},
+			expectedResult: []string{"/metrics"},
+		},
+		{
+			name: "map with two single ignored path",
+			annotations: map[string]string{
+				"osiris.deislabs.io/ignoredPaths": "/metrics,/health",
+			},
+			expectedResult: []string{"/metrics", "/health"},
+		},
+		{
+			name: "map with no ignored paths entry",
+			annotations: map[string]string{
+				"whatever": "3",
+			},
+			expectedResult: nil,
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			actual := GetIgnoredPaths(test.annotations)
+			if !reflect.DeepEqual(actual, test.expectedResult) {
+				t.Errorf(
+					"expected GetMinReplicas to return %s, but got %s",
 					test.expectedResult, actual)
 			}
 		})
