@@ -12,14 +12,14 @@ development.__
 
 ## How it works
 
-For Osiris-enabled deployments, Osiris automatically instruments application
-pods with a __metrics-collecting proxy__ deployed as a sidecar container.
+For Osiris-enabled deployments or statefulSets, Osiris automatically instruments
+application pods with a __metrics-collecting proxy__ deployed as a sidecar container.
 
-For any Osiris-enabled deployment that is _already_ scaled to a configurable
-minimum number of replicas (one, by default), the __zeroscaler__ component
-continuously analyzes metrics from each of that deployment's pods. When the
-aggregated metrics reveal that all of the deployment's pods are idling, the
-zeroscaler scales the deployment to zero replicas.
+For any Osiris-enabled deployment or statefulSet that is _already_ scaled to
+a configurable minimum number of replicas (one, by default), the __zeroscaler__
+component continuously analyzes metrics from each of that deployment/statefulSet's
+pods. When the aggregated metrics reveal that all of the deployment/statefulSet's
+pods are idling, the zeroscaler scales the deployment/statefulSet to zero replicas.
 
 Under normal circumstances, scaling a deployment to zero replicas poses a
 problem: any services that select pods from that deployment (and only that
@@ -148,7 +148,7 @@ spec:
 Deploy the example application `hello-osiris` :
 
 ```
-kubectl create -f ./example/hello-osiris.yaml
+kubectl create -f ./example/hello-osiris-deployment.yaml
 ```
 
 This will create an Osiris-enabled deployment and service named `hello-osiris`.
@@ -167,6 +167,10 @@ replicas and the one `hello-osiris` pod should be terminated.
 
 Make a request again, and watch as Osiris scales the deployment back to one
 replica and your request is handled successfully.
+
+You can also do the same with the 
+[hello-osiris-statefulset.yaml](example/hello-osiris-statefulset.yaml) example, 
+which uses a Kubernetes StatefulSet instead of a Deployment.
 
 ## Limitations
 

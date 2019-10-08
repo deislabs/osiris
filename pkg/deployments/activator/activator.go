@@ -29,8 +29,8 @@ type activator struct {
 	nodeAddresses             map[string]struct{}
 	appsByHost                map[string]*app
 	indicesLock               sync.RWMutex
-	deploymentActivations     map[string]*deploymentActivation
-	deploymentActivationsLock sync.Mutex
+	appActivations            map[string]*appActivation
+	appActivationsLock        sync.Mutex
 	dynamicProxyListenAddrStr string
 	dynamicProxy              tcp.DynamicProxy
 	httpClient                *http.Client
@@ -56,7 +56,7 @@ func NewActivator(kubeClient kubernetes.Interface) (Activator, error) {
 		services:                  map[string]*corev1.Service{},
 		nodeAddresses:             map[string]struct{}{},
 		appsByHost:                map[string]*app{},
-		deploymentActivations:     map[string]*deploymentActivation{},
+		appActivations:            map[string]*appActivation{},
 		httpClient: &http.Client{
 			Timeout: time.Minute * 1,
 		},
@@ -127,7 +127,7 @@ func (a *activator) syncService(obj interface{}) {
 	a.indicesLock.Lock()
 	defer a.indicesLock.Unlock()
 	svc := obj.(*corev1.Service)
-	svcKey := getKey(svc.Namespace, svc.Name)
+	svcKey := getKey(svc.Namespace, "Service", svc.Name)
 	if k8s.ResourceIsOsirisEnabled(svc.Annotations) {
 		a.services[svcKey] = svc
 	} else {
@@ -140,7 +140,7 @@ func (a *activator) syncDeletedService(obj interface{}) {
 	a.indicesLock.Lock()
 	defer a.indicesLock.Unlock()
 	svc := obj.(*corev1.Service)
-	svcKey := getKey(svc.Namespace, svc.Name)
+	svcKey := getKey(svc.Namespace, "Service", svc.Name)
 	delete(a.services, svcKey)
 	a.updateIndex()
 }

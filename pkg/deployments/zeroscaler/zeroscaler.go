@@ -22,12 +22,13 @@ type Zeroscaler interface {
 }
 
 type zeroscaler struct {
-	cfg                 Config
-	kubeClient          kubernetes.Interface
-	deploymentsInformer cache.SharedInformer
-	collectors          map[string]*metricsCollector
-	collectorsLock      sync.Mutex
-	ctx                 context.Context
+	cfg                  Config
+	kubeClient           kubernetes.Interface
+	deploymentsInformer  cache.SharedInformer
+	statefulSetsInformer cache.SharedInformer
+	collectors           map[string]*metricsCollector
+	collectorsLock       sync.Mutex
+	ctx                  context.Context
 }
 
 func NewZeroscaler(cfg Config, kubeClient kubernetes.Interface) Zeroscaler {
@@ -35,6 +36,12 @@ func NewZeroscaler(cfg Config, kubeClient kubernetes.Interface) Zeroscaler {
 		cfg:        cfg,
 		kubeClient: kubeClient,
 		deploymentsInformer: k8s.DeploymentsIndexInformer(
+			kubeClient,
+			metav1.NamespaceAll,
+			nil,
+			nil,
+		),
+		statefulSetsInformer: k8s.StatefulSetsIndexInformer(
 			kubeClient,
 			metav1.NamespaceAll,
 			nil,
@@ -49,10 +56,18 @@ func NewZeroscaler(cfg Config, kubeClient kubernetes.Interface) Zeroscaler {
 		},
 		DeleteFunc: z.syncDeletedDeployment,
 	})
+	z.statefulSetsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
+		AddFunc: z.syncStatefulSet,
+		UpdateFunc: func(_, newObj interface{}) {
+			z.syncStatefulSet(newObj)
+		},
+		DeleteFunc: z.syncDeletedStatefulSet,
+	})
 	return z
 }
 
-// Run causes the controller to collect metrics for Osiris-enabled deployments.
+// Run causes the controller to collect metrics for Osiris-enabled
+// deployments and statefulSets.
 func (z *zeroscaler) Run(ctx context.Context) {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
@@ -64,6 +79,10 @@ func (z *zeroscaler) Run(ctx context.Context) {
 	glog.Infof("Zeroscaler is started")
 	go func() {
 		z.deploymentsInformer.Run(ctx.Done())
+		cancel()
+	}()
+	go func() {
+		z.statefulSetsInformer.Run(ctx.Done())
 		cancel()
 	}()
 	healthz.RunServer(ctx, 5000)
@@ -88,7 +107,12 @@ func (z *zeroscaler) syncDeployment(obj interface{}) {
 				deployment.Name,
 				deployment.Namespace,
 			)
-			z.ensureMetricsCollection(deployment)
+			z.ensureMetricsCollection(
+				"Deployment",
+				deployment.Namespace,
+				deployment.Name,
+				deployment.Spec.Selector,
+			)
 		} else {
 			glog.Infof(
 				"Osiris-enabled deployment %s in namespace %s is running zero "+
@@ -97,7 +121,11 @@ func (z *zeroscaler) syncDeployment(obj interface{}) {
 				deployment.Name,
 				deployment.Namespace,
 			)
-			z.ensureNoMetricsCollection(deployment)
+			z.ensureNoMetricsCollection(
+				"Deployment",
+				deployment.Namespace,
+				deployment.Name,
+			)
 		}
 	} else {
 		glog.Infof(
@@ -106,7 +134,64 @@ func (z *zeroscaler) syncDeployment(obj interface{}) {
 			deployment.Name,
 			deployment.Namespace,
 		)
-		z.ensureNoMetricsCollection(deployment)
+		z.ensureNoMetricsCollection(
+			"Deployment",
+			deployment.Namespace,
+			deployment.Name,
+		)
+	}
+}
+
+func (z *zeroscaler) syncStatefulSet(obj interface{}) {
+	statefulSet := obj.(*appsv1.StatefulSet)
+	if k8s.ResourceIsOsirisEnabled(statefulSet.Annotations) {
+		glog.Infof(
+			"Notified about new or updated Osiris-enabled statefulSet %s in "+
+				"namespace %s",
+			statefulSet.Name,
+			statefulSet.Namespace,
+		)
+		minReplicas := k8s.GetMinReplicas(statefulSet.Annotations, 1)
+		if *statefulSet.Spec.Replicas > 0 &&
+			statefulSet.Status.ReadyReplicas <= minReplicas {
+			glog.Infof(
+				"Osiris-enabled statefulSet %s in namespace %s is running the minimun "+
+					"number of replicas or fewer; ensuring metrics collection",
+				statefulSet.Name,
+				statefulSet.Namespace,
+			)
+			z.ensureMetricsCollection(
+				"StatefulSet",
+				statefulSet.Namespace,
+				statefulSet.Name,
+				statefulSet.Spec.Selector,
+			)
+		} else {
+			glog.Infof(
+				"Osiris-enabled statefulSet %s in namespace %s is running zero "+
+					"replicas OR more than the minimum number of replicas; ensuring "+
+					"NO metrics collection",
+				statefulSet.Name,
+				statefulSet.Namespace,
+			)
+			z.ensureNoMetricsCollection(
+				"StatefulSet",
+				statefulSet.Namespace,
+				statefulSet.Name,
+			)
+		}
+	} else {
+		glog.Infof(
+			"Notified about new or updated non-Osiris-enabled statefulSet %s in "+
+				"namespace %s; ensuring NO metrics collection",
+			statefulSet.Name,
+			statefulSet.Namespace,
+		)
+		z.ensureNoMetricsCollection(
+			"StatefulSet",
+			statefulSet.Namespace,
+			statefulSet.Name,
+		)
 	}
 }
 
@@ -118,28 +203,50 @@ func (z *zeroscaler) syncDeletedDeployment(obj interface{}) {
 		deployment.Name,
 		deployment.Namespace,
 	)
-	z.ensureNoMetricsCollection(deployment)
+	z.ensureNoMetricsCollection(
+		"Deployment",
+		deployment.Namespace,
+		deployment.Name,
+	)
 }
 
-func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
+func (z *zeroscaler) syncDeletedStatefulSet(obj interface{}) {
+	statefulSet := obj.(*appsv1.StatefulSet)
+	glog.Infof(
+		"Notified about deleted statefulSet %s in namespace %s; ensuring NO "+
+			"metrics collection",
+		statefulSet.Name,
+		statefulSet.Namespace,
+	)
+	z.ensureNoMetricsCollection(
+		"StatefulSet",
+		statefulSet.Namespace,
+		statefulSet.Name,
+	)
+}
+
+func (z *zeroscaler) ensureMetricsCollection(kind, namespace, name string,
+	labelSelector *metav1.LabelSelector) {
 	z.collectorsLock.Lock()
 	defer z.collectorsLock.Unlock()
-	key := getDeploymentKey(deployment)
-	selector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
+	key := getKey(kind, namespace, name)
+	selector := labels.SelectorFromSet(labelSelector.MatchLabels)
 	if collector, ok := z.collectors[key]; !ok ||
 		!reflect.DeepEqual(selector, collector.selector) {
 		if ok {
 			collector.stop()
 		}
 		glog.Infof(
-			"Using new metrics collector for deployment %s in namespace %s",
-			deployment.Name,
-			deployment.Namespace,
+			"Using new metrics collector for %s %s in namespace %s",
+			kind,
+			name,
+			namespace,
 		)
 		collector := newMetricsCollector(
 			z.kubeClient,
-			deployment.Name,
-			deployment.Namespace,
+			kind,
+			name,
+			namespace,
 			selector,
 			time.Duration(z.cfg.MetricsCheckInterval)*time.Second,
 		)
@@ -155,22 +262,23 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 		return
 	}
 	glog.Infof(
-		"Using existing metrics collector for deployment %s in namespace %s",
-		deployment.Name,
-		deployment.Namespace,
+		"Using existing metrics collector for %s %s in namespace %s",
+		kind,
+		name,
+		namespace,
 	)
 }
 
-func (z *zeroscaler) ensureNoMetricsCollection(deployment *appsv1.Deployment) {
+func (z *zeroscaler) ensureNoMetricsCollection(kind, namespace, name string) {
 	z.collectorsLock.Lock()
 	defer z.collectorsLock.Unlock()
-	key := getDeploymentKey(deployment)
+	key := getKey(kind, namespace, name)
 	if collector, ok := z.collectors[key]; ok {
 		collector.stop()
 		delete(z.collectors, key)
 	}
 }
 
-func getDeploymentKey(deployment *appsv1.Deployment) string {
-	return fmt.Sprintf("%s:%s", deployment.Namespace, deployment.Name)
+func getKey(kind, namespace, name string) string {
+	return fmt.Sprintf("%s:%s/%s", kind, namespace, name)
 }

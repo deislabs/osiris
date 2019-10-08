@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: hello-osiris
+  labels:
+    app: hello-osiris
+  annotations:
+    osiris.deislabs.io/enabled: "true"
+    osiris.deislabs.io/statefulset: hello-osiris
+    osiris.deislabs.io/loadBalancerHostname: hello-osiris.contoso.io
+spec:
+  type: LoadBalancer
+  ports:
+  - name: http
+    port: 8080
+    targetPort: 8080
+  - name: h2c
+    port: 8081
+    targetPort: 8081
+  - name: grpc
+    port: 8082
+    targetPort: 8082
+  - name: https
+    port: 4430
+    targetPort: 4430
+  selector:
+    app: hello-osiris
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: hello-osiris-cert
+  labels:
+    app: hello-osiris
+data:
+  server.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUQyRENDQXNBQ0NRQy9HeC92dExTTlZEQU5CZ2txaGtpRzl3MEJBUXNGQURDQnJURUxNQWtHQTFVRUJoTUMKVlZNeEV6QVJCZ05WQkFnTUNsZGhjMmhwYm1kMGIyNHhFREFPQmdOVkJBY01CMUpsWkcxdmJtUXhFakFRQmdOVgpCQW9NQ1VSbGFYTWdUR0ZpY3pFVU1CSUdBMVVFQ3d3TFJXNW5hVzVsWlhKcGJtY3hJVEFmQmdOVkJBTU1HR2hsCmJHeHZMVzl6YVhKcGN5NWtaV2x6YkdGaWN5NXBiekVxTUNnR0NTcUdTSWIzRFFFSkFSWWJhMlZ1ZEM1eVlXNWoKYjNWeWRFQnRhV055YjNOdlpuUXVZMjl0TUI0WERURTVNREl5TXpBd01UazBNVm9YRFRJd01ESXlNekF3TVRrMApNVm93Z2EweEN6QUpCZ05WQkFZVEFsVlRNUk13RVFZRFZRUUlEQXBYWVhOb2FXNW5kRzl1TVJBd0RnWURWUVFICkRBZFNaV1J0YjI1a01SSXdFQVlEVlFRS0RBbEVaV2x6SUV4aFluTXhGREFTQmdOVkJBc01DMFZ1WjJsdVpXVnkKYVc1bk1TRXdId1lEVlFRRERCaG9aV3hzYnkxdmMybHlhWE11WkdWcGMyeGhZbk11YVc4eEtqQW9CZ2txaGtpRwo5dzBCQ1FFV0cydGxiblF1Y21GdVkyOTFjblJBYldsamNtOXpiMlowTG1OdmJUQ0NBU0l3RFFZSktvWklodmNOCkFRRUJCUUFEZ2dFUEFEQ0NBUW9DZ2dFQkFMZEJZTFlwT2NaSUdEWWs2Qzl5T1hreE8wcUZQbVkzNGVWanBrc0oKZjZqaUVEUDFWZlBoWXV6TnRwMUY0ZWhlR1h3WEU0cmt4ZjQ5bExtcmU4L3g4NUh6RHNKK1NNdnlaZ09XZjZMcgpoNE53aVBKcmNjcDhGTVlXMmtJenJiVWZFS0wxYUZ1VCtkRXc3NkgxRlhPUmsvS0Y0V3JMYXhkRlBPbDhLMWVPCm1NazFtSkU3NTNYZzVYd2FVVUVHZ2tGbUZkZHJhQ2N3Y1U0QmtnbXRObTdFTExJQ2Nnb3MzNHVmR21ndmN2ZkwKSWhuenZxNmxCNDM4a0hyaG16OG11WFVwYjhQa1k2NmtxRGpxTk53YlBsLzJrMjYvVTg1RUVlazI0YnowMzlBZApsUnpKUTFndUhacmxKOTBQckl0aFJzM3NNZmdzWGtIaGZDR0J5dlVXYWZubUZPY0NBd0VBQVRBTkJna3Foa2lHCjl3MEJBUXNGQUFPQ0FRRUFzckltVURVK0E2YWNHVGloK3N5c2lpQWVWYWtsL0FNcytvWXJIa1NPK2NrOXVNcFUKMUw3dUtrNDZBSGZ0dkplbXJqaFBObHJpSmZOSEh5bEZ0YlpkTjRqM2RmL3p1L1ExbVRMa2dLUXJWZkl6ZFF2eApVUlEyOXB2ZWFBdFJyL0x6VXZINllWRE5lTk9wWXk3ZEJJT1ZqcGpjZFJ5amRHZE1xejBLbEhvUGlnbEdiUEFWCldzdXBmbWI3Nzd1Q3ZtUGRHc1lwb2wvTE9jOU44ZUE0VUdPNk9sWmtWU0NGOTJjSk9oaCtyd1c0cktTOXZFTTcKRzJmaXZVVDZJWCtFamdGQzB0ZytLMkNSSjRoTElnNTFSc0lmdEllNk01MFBpOCsvc3d6andYV2ZuQmpkUWkyegpudC9XYmR3THA2Q2pMR01UdVNrZmVGam00Z2QzM2cyMmRSY09RZz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  server.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcEFJQkFBS0NBUUVBdDBGZ3RpazV4a2dZTmlUb0wzSTVlVEU3U29VK1pqZmg1V09tU3dsL3FPSVFNL1ZWCjgrRmk3TTIyblVYaDZGNFpmQmNUaXVURi9qMlV1YXQ3ei9IemtmTU93bjVJeS9KbUE1Wi9vdXVIZzNDSThtdHgKeW53VXhoYmFRak90dFI4UW92Vm9XNVA1MFREdm9mVVZjNUdUOG9YaGFzdHJGMFU4Nlh3clY0Nll5VFdZa1R2bgpkZURsZkJwUlFRYUNRV1lWMTJ0b0p6QnhUZ0dTQ2EwMmJzUXNzZ0p5Q2l6Zmk1OGFhQzl5OThzaUdmTytycVVICmpmeVFldUdiUHlhNWRTbHZ3K1JqcnFTb09PbzAzQnMrWC9hVGJyOVR6a1FSNlRiaHZQVGYwQjJWSE1sRFdDNGQKbXVVbjNRK3NpMkZHemV3eCtDeGVRZUY4SVlISzlSWnArZVlVNXdJREFRQUJBb0lCQUdVS2lDK0lSWkc5V0pRcAovMWVCekl5MUIzTU1TcDZEdTJzR2FiOC82b0tNdXRCYk9sd3c3cUdRdjFxeUdHQk4yaEZnaStidVF2anVyVjArClh4TUYzZjJnSFloQnB4UEVnRmtFRnpZV1ZXNjBrdDNQUGp1ZDlMcFFDV0d0S3Q4TjFOZDFKbWd3Qy9NNjN6WFcKYzFCNGVUR2tmZWlyWmsyN1lGMkFtRWs3bDZTQWw4SXVSbHNvUnpSVjBjTGxDQ1ZqeGZrWFFaTko3d0tnQzk2RAovSXppTVhzZ2h3MEd5NFg2L1FadjZnSGFIdHN0d1lITkFyeUF4eExYMVNQOTJhc1BEdWFXYUFMbEJzdGRSc2RtCkpIdU43dWtuMGFHZEMyeVAwQWlDS2prM1NjUnpVdHhyMlBqb3d4WGYwd3BDYUFYN2xVenk2RWpId29VTmg1VEcKenlhRTRoa0NnWUVBN2o2T21lSzdqN1E4SlMwR2NtTDVxbmMzdkRkUkdSdFlhclk2UzR1Qko2UmVnMkJGSFZ4MApPU2lrV1E2Z2dTTkJvMnEwR3pvcVpYZ3FSdGVtYjh1WUhUR25ad2NlRGd4dVhMcXg2cHRKWTlvajJJcDNXQXFaCjdWei95WGl6aWpIWmJZTW5IQmUyODFEMmFUQzlJRXpwdGg2NmlTZ2VYa1pWOFhNL1BCQjk1ZVVDZ1lFQXhPbXcKM04wY2J6QkxPeUN5Zkdhc2phRnAxNml3djFMYVB2b3ZSaG9ubDhkczVmVy9GdC9kMTY1YVorOCtnTU1rN1kxTwpFdkxmVjFkZXVUS0Y0VDV4dC90ZTVYcU5ocXJRbWt5RmZUY0tFem8rODZnUnpxTWRqSXh1eDhjN3FRWjg3Y2xxCitSNTBUbzZraGt1YXlpc1hWT05CV2VxekFSWk9QWmh2L2xSaUl0c0NnWUVBb0xZZ1dkeGg2OW1JTFFmSGJvZ24KcFA5UTRLMXNEb1NzeXlkc0FhUDBsdnBCSzF4WW95ckgxL3I3aW52Y2QrQ0JtYXdVSEwzSzliSHV5dVVVQ0J3TgoyN3V3RWtieDFrWTZlR0VVUFk5TkhZZDhZTWxmSWt2Y2RBc2xIUkpJQXJRSDJPRDlFKzFIWTdFODE4Nmg5ZFVNClh1Y3hxKzRkTmprNkptczR2OXJjSXFVQ2dZQUJrTDRJTTNYTGFIM2duWFR0eWo4cTdSS1RWVkw2WW1VN3hPOWwKUmtYMFRmQ09yM0p5Y3hzbllNcDFNeEN6STFvQ3pYSEdjc25WdnVzUTI5YjJvSEYwL2ZtV0ozQkNsczhMdXZvQQpzZFJSck0vZFRnTytPY3U5VjB4MktCNVFUSzNua2dkWXJhWk5EWk0vUWhDYjlOVzlwZ1RaK3lTcktJczhzQjZMCnpnM3Rxd0tCZ1FDTzhrNkVZRVVoZW5DMWNldSs0ejdEWmZrL01CTWlJci9ob1NySllaSmVOWldBSDJOd2p5M0cKUlhYWTZzdVRZRFRXVUJYWTZZMDl2STdOQzhmRk11ZmhyM28zaThMMVNWMlNCQ0VyMlV4T3RHWnN4TEVMMnhUQwpCbFIrMEF2MnUzSFBKRTBiV3ptVGh3U1RlQ2h0Z3pZQ2tIUlZlNlJMZVhET0w3SkFnQWNyM1E9PQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: hello-osiris
+  labels:
+    app: hello-osiris
+  annotations:
+    osiris.deislabs.io/enabled: "true"
+    osiris.deislabs.io/minReplicas: "1"
+spec:
+  replicas: 1
+  serviceName: hello-osiris
+  selector:
+    matchLabels:
+      app: hello-osiris
+  template:
+    metadata:
+      labels:
+        app: hello-osiris
+    spec:
+      containers:
+      - name: hello-osiris
+        image: krancour/hello-osiris:v0.1.0
+        args:
+        - --https-cert
+        - /hello-osiris/cert/server.crt
+        - --https-key
+        - /hello-osiris/cert/server.key
+        ports:
+        - containerPort: 8080
+        - containerPort: 8081
+        - containerPort: 8082
+        - containerPort: 4430
+        volumeMounts:
+        - name: cert
+          mountPath: /hello-osiris/cert
+          readOnly: true
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+      volumes:
+      - name: cert
+        secret:
+          secretName: hello-osiris-cert
