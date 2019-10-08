@@ -119,33 +119,78 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 		name           string
 		annotations    map[string]string
 		expectedResult int
+		expectedError  bool
 	}{
 		{
-			name: "map with metrics check interval entry",
-			annotations: map[string]string{
-				"osiris.deislabs.io/metricsCheckInterval": "60",
-			},
-			expectedResult: 60,
+			name:           "nil map",
+			annotations:    nil,
+			expectedResult: 0,
+			expectedError:  false,
+		},
+		{
+			name:           "empty map",
+			annotations:    map[string]string{},
+			expectedResult: 0,
+			expectedError:  false,
 		},
 		{
 			name: "map with no metrics check interval entry",
 			annotations: map[string]string{
-				"osiris.deislabs.io/notmetricsCheckInterval": "60",
+				"whatever": "60",
 			},
-			expectedResult: 150,
+			expectedResult: 0,
+			expectedError:  false,
 		},
 		{
 			name: "map with invalid metrics check interval entry",
 			annotations: map[string]string{
 				"osiris.deislabs.io/metricsCheckInterval": "invalid",
 			},
-			expectedResult: 150,
+			expectedResult: 0,
+			expectedError:  true,
+		},
+		{
+			name: "map with negative metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "-1",
+			},
+			expectedResult: 0,
+			expectedError:  true,
+		},
+		{
+			name: "map with zero metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "0",
+			},
+			expectedResult: 0,
+			expectedError:  true,
+		},
+		{
+			name: "map with valid metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "60",
+			},
+			expectedResult: 60,
+			expectedError:  false,
 		},
 	}
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
-			actual := GetMetricsCheckInterval(test.annotations, 150)
+			actual, err := GetMetricsCheckInterval(test.annotations)
+			if err != nil {
+				if !test.expectedError {
+					t.Errorf(
+						"expected GetMetricsCheckInterval to return %d, but got error %v",
+						test.expectedResult, err)
+				}
+			} else {
+				if test.expectedError {
+					t.Error(
+						"expected GetMetricsCheckInterval to return an error, but got none")
+				}
+			}
+
 			if actual != test.expectedResult {
 				t.Errorf(
 					"expected GetMetricsCheckInterval to return %d, but got %d",

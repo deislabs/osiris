@@ -131,10 +131,22 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 		if ok {
 			collector.stop()
 		}
-		metricsCheckInterval := k8s.GetMetricsCheckInterval(
+		metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
 			deployment.Annotations,
-			z.cfg.MetricsCheckInterval,
 		)
+		if err != nil {
+			glog.Warningf(
+				"Invalid custom metrics check interval value in deployment %s,"+
+					" falling back to the default value of %d seconds; error: %s",
+				deployment.Name,
+				z.cfg.MetricsCheckInterval,
+				err,
+			)
+			metricsCheckInterval = z.cfg.MetricsCheckInterval
+		}
+		if metricsCheckInterval <= 0 {
+			metricsCheckInterval = z.cfg.MetricsCheckInterval
+		}
 		glog.Infof(
 			"Using new metrics collector for deployment %s in namespace %s "+
 				"with metrics check interval of %d seconds",

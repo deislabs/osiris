@@ -1,8 +1,13 @@
 package kubernetes
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
+)
+
+const (
+	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
 )
 
 // ResourceIsOsirisEnabled checks the annotations to see if the
@@ -37,19 +42,24 @@ func GetMinReplicas(annotations map[string]string, defaultVal int32) int32 {
 
 // GetMetricsCheckInterval gets the interval in which the zeroScaler would
 // repeatedly track the pod http request metrics. The value is the number
-// of seconds of the interval. If it fails to do so, it returns the default
-// value instead.
-func GetMetricsCheckInterval(
-	annotations map[string]string,
-	defaultVal int,
-) int {
-	val, ok := annotations["osiris.deislabs.io/metricsCheckInterval"]
+// of seconds of the interval. If it fails to do so, it returns an error.
+func GetMetricsCheckInterval(annotations map[string]string) (int, error) {
+	if len(annotations) == 0 {
+		return 0, nil
+	}
+	val, ok := annotations[metricsCheckIntervalAnnotationName]
 	if !ok {
-		return defaultVal
+		return 0, nil
 	}
 	metricsCheckInterval, err := strconv.Atoi(val)
 	if err != nil {
-		return defaultVal
+		return 0, fmt.Errorf("invalid int value '%s' for '%s' annotation: %s",
+			val, metricsCheckIntervalAnnotationName, err)
 	}
-	return metricsCheckInterval
+	if metricsCheckInterval <= 0 {
+		return 0, fmt.Errorf("metricsCheckInterval should be positive, "+
+			"'%d' is not a valid value",
+			metricsCheckInterval)
+	}
+	return metricsCheckInterval, nil
 }
