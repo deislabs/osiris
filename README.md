@@ -196,7 +196,7 @@ Note that you might see an `osiris.deislabs.io/selector` annotation - this is fo
 
 ### Demo
 
-Deploy the example application `hello-osiris` :
+Deploy the [example application](example/hello-osiris.yaml) `hello-osiris` :
 
 ```
 kubectl create -f ./example/hello-osiris.yaml
