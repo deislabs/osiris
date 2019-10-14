@@ -45,6 +45,7 @@ metadata:
   annotations:
     osiris.deislabs.io/enabled: "true"
     osiris.deislabs.io/minReplicas: "1"
+    osiris.deislabs.io/ignoredPaths: "/first/path,/second-path"
 spec:
   replicas: 1
   selector:

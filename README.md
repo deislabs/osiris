@@ -102,6 +102,7 @@ The following table lists the configurable parameters of the Helm chart and thei
 | Parameter | Description | Default |
 | --------- | ----------- | ------- |
 | `zeroscaler.metricsCheckInterval` | The interval in which the zeroScaler would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. | `150` |
+| `proxyInjector.ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Note that this can also be set on a per-deployment basis, with an annotation. | `[]` |
 
 Example of installation with Helm and a custom configuration:
 
@@ -178,6 +179,7 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 | ---------- | ----------- | ------- |
 | `osiris.deislabs.io/enabled` | Enable Osiris for this deployment. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/minReplicas` | The minimum number of replicas to set on the deployment when Osiris will scale up. If you set `2`, Osiris will scale the deployment from `0` to `2` replicas directly. Osiris won't collect metrics from deployments which have more than `minReplicas` replicas - to avoid useless collections of metrics. | `1` |
+| `osiris.deislabs.io/ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Note that this list is appended to the global list defined by the `proxyInjector.ignoredPaths` Helm value. Format: comma-separated string. | _no value_ |
 
 #### Service Annotations
 
@@ -218,6 +220,29 @@ replicas and the one `hello-osiris` pod should be terminated.
 
 Make a request again, and watch as Osiris scales the deployment back to one
 replica and your request is handled successfully.
+
+### Features
+
+#### Counting requests at the proxy level
+
+By default, the proxy will count every request to your service - 
+except for the following:
+
+- requests with the `kube-probe` user-agent - those are the requests make by Kubernetes on your liveness/readiness endpoint.
+
+If you have other tools/bots making automated requests to your service, 
+and these requests are blocking Osiris from scaling down your deployment, 
+you can exclude specific URL paths from being "counted" by the proxy. 
+
+You can do that:
+- at the global level, by setting the `proxyInjector.ignoredPaths` Helm value
+- or at the deployment level, by adding the `osiris.deislabs.io/ignoredPaths` annotation
+
+Note that the paths defined at the deployment level will be appended 
+to the list of paths defined at the global level.
+
+A common use-case for this feature is to ignore the `/metrics` path, 
+which is used by Prometheus to collect application's metrics.
 
 ## Limitations
 
