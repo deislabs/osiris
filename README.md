@@ -221,29 +221,6 @@ replicas and the one `hello-osiris` pod should be terminated.
 Make a request again, and watch as Osiris scales the deployment back to one
 replica and your request is handled successfully.
 
-### Features
-
-#### Counting requests at the proxy level
-
-By default, the proxy will count every request to your service - 
-except for the following:
-
-- requests with the `kube-probe` user-agent - those are the requests make by Kubernetes on your liveness/readiness endpoint.
-
-If you have other tools/bots making automated requests to your service, 
-and these requests are blocking Osiris from scaling down your deployment, 
-you can exclude specific URL paths from being "counted" by the proxy. 
-
-You can do that:
-- at the global level, by setting the `proxyInjector.ignoredPaths` Helm value
-- or at the deployment level, by adding the `osiris.deislabs.io/ignoredPaths` annotation
-
-Note that the paths defined at the deployment level will be appended 
-to the list of paths defined at the global level.
-
-A common use-case for this feature is to ignore the `/metrics` path, 
-which is used by Prometheus to collect application's metrics.
-
 ## Limitations
 
 It is a specific goal of Osiris to enable greater resource efficiency within
