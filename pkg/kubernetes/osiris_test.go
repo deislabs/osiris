@@ -1,6 +1,11 @@
 package kubernetes
 
-import "testing"
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
 
 func TestResourceIsOsirisEnabled(t *testing.T) {
 	testcases := []struct {
@@ -119,19 +124,19 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 		name           string
 		annotations    map[string]string
 		expectedResult int
-		expectedError  bool
+		expectedError  string
 	}{
 		{
 			name:           "nil map",
 			annotations:    nil,
 			expectedResult: 0,
-			expectedError:  false,
+			expectedError:  "",
 		},
 		{
 			name:           "empty map",
 			annotations:    map[string]string{},
 			expectedResult: 0,
-			expectedError:  false,
+			expectedError:  "",
 		},
 		{
 			name: "map with no metrics check interval entry",
@@ -139,7 +144,7 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 				"whatever": "60",
 			},
 			expectedResult: 0,
-			expectedError:  false,
+			expectedError:  "",
 		},
 		{
 			name: "map with invalid metrics check interval entry",
@@ -147,7 +152,9 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 				"osiris.deislabs.io/metricsCheckInterval": "invalid",
 			},
 			expectedResult: 0,
-			expectedError:  true,
+			expectedError: "invalid int value 'invalid' for " +
+				"'osiris.deislabs.io/metricsCheckInterval' annotation: " +
+				"strconv.Atoi: parsing \"invalid\": invalid syntax",
 		},
 		{
 			name: "map with negative metrics check interval entry",
@@ -155,7 +162,8 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 				"osiris.deislabs.io/metricsCheckInterval": "-1",
 			},
 			expectedResult: 0,
-			expectedError:  true,
+			expectedError: "metricsCheckInterval should be positive, " +
+				"'-1' is not a valid value",
 		},
 		{
 			name: "map with zero metrics check interval entry",
@@ -163,7 +171,8 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 				"osiris.deislabs.io/metricsCheckInterval": "0",
 			},
 			expectedResult: 0,
-			expectedError:  true,
+			expectedError: "metricsCheckInterval should be positive, " +
+				"'0' is not a valid value",
 		},
 		{
 			name: "map with valid metrics check interval entry",
@@ -171,31 +180,20 @@ func TestGetMetricsCheckInterval(t *testing.T) {
 				"osiris.deislabs.io/metricsCheckInterval": "60",
 			},
 			expectedResult: 60,
-			expectedError:  false,
+			expectedError:  "",
 		},
 	}
 
 	for _, test := range testcases {
 		t.Run(test.name, func(t *testing.T) {
 			actual, err := GetMetricsCheckInterval(test.annotations)
-			if err != nil {
-				if !test.expectedError {
-					t.Errorf(
-						"expected GetMetricsCheckInterval to return %d, but got error %v",
-						test.expectedResult, err)
-				}
+			if len(test.expectedError) > 0 {
+				require.EqualError(t, err, test.expectedError, "")
 			} else {
-				if test.expectedError {
-					t.Error(
-						"expected GetMetricsCheckInterval to return an error, but got none")
-				}
+				require.NoError(t, err)
 			}
 
-			if actual != test.expectedResult {
-				t.Errorf(
-					"expected GetMetricsCheckInterval to return %d, but got %d",
-					test.expectedResult, actual)
-			}
+			assert.Equal(t, test.expectedResult, actual)
 		})
 	}
 }
