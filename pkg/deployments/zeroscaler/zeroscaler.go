@@ -145,6 +145,13 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 			metricsCheckInterval = z.cfg.MetricsCheckInterval
 		}
 		if metricsCheckInterval <= 0 {
+			glog.Warningf(
+				"Invalid custom metrics check interval value %d in deployment %s,"+
+					" falling back to the default value of %d seconds",
+				metricsCheckInterval,
+				deployment.Name,
+				z.cfg.MetricsCheckInterval,
+			)
 			metricsCheckInterval = z.cfg.MetricsCheckInterval
 		}
 		glog.Infof(
