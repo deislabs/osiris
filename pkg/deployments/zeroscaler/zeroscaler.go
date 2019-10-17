@@ -136,8 +136,9 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 		)
 		if err != nil {
 			glog.Warningf(
-				"Invalid custom metrics check interval value in deployment %s,"+
-					" falling back to the default value of %d seconds; error: %s",
+				"There was an error getting custom metrics check interval value "+
+					"in deployment %s, falling back to the default value of %d "+
+					"seconds; error: %s",
 				deployment.Name,
 				z.cfg.MetricsCheckInterval,
 				err,
