@@ -220,10 +220,6 @@ replicas and the one `hello-osiris` pod should be terminated.
 Make a request again, and watch as Osiris scales the deployment back to one
 replica and your request is handled successfully.
 
-You can also do the same with the 
-[hello-osiris-statefulset.yaml](example/hello-osiris-statefulset.yaml) example, 
-which uses a Kubernetes StatefulSet instead of a Deployment.
-
 ## Limitations
 
 It is a specific goal of Osiris to enable greater resource efficiency within
