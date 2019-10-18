@@ -200,7 +200,7 @@ Note that you might see an `osiris.deislabs.io/selector` annotation - this is fo
 Deploy the [example application](example/hello-osiris.yaml) `hello-osiris` :
 
 ```
-kubectl create -f ./example/hello-osiris-deployment.yaml
+kubectl create -f ./example/hello-osiris.yaml
 ```
 
 This will create an Osiris-enabled deployment and service named `hello-osiris`.
