@@ -178,8 +178,15 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 | ---------- | ----------- | ------- |
 | `osiris.deislabs.io/enabled` | Enable Osiris for this deployment. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/minReplicas` | The minimum number of replicas to set on the deployment when Osiris will scale up. If you set `2`, Osiris will scale the deployment from `0` to `2` replicas directly. Osiris won't collect metrics from deployments which have more than `minReplicas` replicas - to avoid useless collections of metrics. | `1` |
-| `osiris.deislabs.io/ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Format: comma-separated string. | _no value_ |
 | `osiris.deislabs.io/metricsCheckInterval` | The interval in which Osiris would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. Note that this value override the global value defined by the `zeroscaler.metricsCheckInterval` Helm value. | _value of the `zeroscaler.metricsCheckInterval` Helm value_ |
+
+#### Pod Annotations
+
+The following table lists the supported annotations for Kubernetes `Pods` and their default values.
+
+| Annotation | Description | Default |
+| ---------- | ----------- | ------- |
+| `osiris.deislabs.io/ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Format: comma-separated string. | _no value_ |
 
 #### Service Annotations
 

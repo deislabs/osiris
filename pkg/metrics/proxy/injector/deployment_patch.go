@@ -2,7 +2,6 @@ package injector
 
 import (
 	"encoding/json"
-	"strings"
 
 	"github.com/deislabs/osiris/pkg/kubernetes"
 	"github.com/golang/glog"
@@ -59,23 +58,6 @@ func (i *injector) getDeploymentPatchOperations(
 			Path:  "/spec/template/metadata/annotations/osiris.deislabs.io~1enabled", // nolint: lll
 			Value: "true",
 		})
-
-		// Add or update "osiris.deislabs.io/ignoredPaths"
-		if ignoredPaths :=
-			kubernetes.GetIgnoredPaths(deployment.Annotations); len(ignoredPaths) > 0 { // nolint: lll
-			var op string
-			if _, ok :=
-				deployment.Spec.Template.Annotations[kubernetes.IgnoredPathsAnnotationName]; ok { // nolint: lll
-				op = "replace"
-			} else {
-				op = "add"
-			}
-			patchOps = append(patchOps, kubernetes.PatchOperation{
-				Op:    op,
-				Path:  "/spec/template/metadata/annotations/osiris.deislabs.io~1ignoredPaths", // nolint: lll
-				Value: strings.Join(ignoredPaths, ","),
-			})
-		}
 
 		return patchOps, nil
 
