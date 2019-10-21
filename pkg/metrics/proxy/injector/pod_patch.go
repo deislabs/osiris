@@ -60,14 +60,6 @@ func (i *injector) getPodPatchOperations(
 	// the proxy sidecar and proxy init container
 	portMappingStr := strings.Join(portMappingStrs, ",")
 
-	// Build the list of "ignored paths" that won't be counted by appending the
-	// custom list from the pod to the global list from the config
-	ignoredPaths := strings.Split(i.config.IgnoredPaths, ",")
-	ignoredPaths = append(
-		ignoredPaths,
-		kubernetes.GetIgnoredPaths(pod.Annotations)...,
-	)
-
 	patchOps := []kubernetes.PatchOperation{}
 
 	if !podContainsProxyInitContainer(&pod) {
@@ -137,7 +129,7 @@ func (i *injector) getPodPatchOperations(
 				},
 				{
 					Name:  "IGNORED_PATHS",
-					Value: strings.Join(ignoredPaths, ","),
+					Value: pod.Annotations[kubernetes.IgnoredPathsAnnotationName],
 				},
 			},
 			Ports: []corev1.ContainerPort{

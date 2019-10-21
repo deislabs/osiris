@@ -11,8 +11,6 @@ type Config struct {
 	TLSKeyFile           string `envconfig:"TLS_KEY_FILE" required:"true"`
 	ProxyImage           string `envconfig:"PROXY_IMAGE" required:"true"`
 	ProxyImagePullPolicy string `envconfig:"PROXY_IMAGE_PULL_POLICY"`
-	// comma-separated list of URL paths that won't be counted
-	IgnoredPaths string `envconfig:"IGNORED_PATHS"`
 }
 
 // NewConfigWithDefaults returns a Config object with default values already
