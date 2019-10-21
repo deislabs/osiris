@@ -3,6 +3,9 @@ package kubernetes
 import (
 	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestResourceIsOsirisEnabled(t *testing.T) {
@@ -164,6 +167,85 @@ func TestGetIgnoredPaths(t *testing.T) {
 					"expected GetMinReplicas to return %s, but got %s",
 					test.expectedResult, actual)
 			}
+		})
+	}
+}
+
+func TestGetMetricsCheckInterval(t *testing.T) {
+	testcases := []struct {
+		name           string
+		annotations    map[string]string
+		expectedResult int
+		expectedError  string
+	}{
+		{
+			name:           "nil map",
+			annotations:    nil,
+			expectedResult: 0,
+			expectedError:  "",
+		},
+		{
+			name:           "empty map",
+			annotations:    map[string]string{},
+			expectedResult: 0,
+			expectedError:  "",
+		},
+		{
+			name: "map with no metrics check interval entry",
+			annotations: map[string]string{
+				"whatever": "60",
+			},
+			expectedResult: 0,
+			expectedError:  "",
+		},
+		{
+			name: "map with invalid metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "invalid",
+			},
+			expectedResult: 0,
+			expectedError: "invalid int value 'invalid' for " +
+				"'osiris.deislabs.io/metricsCheckInterval' annotation: " +
+				"strconv.Atoi: parsing \"invalid\": invalid syntax",
+		},
+		{
+			name: "map with negative metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "-1",
+			},
+			expectedResult: 0,
+			expectedError: "metricsCheckInterval should be positive, " +
+				"'-1' is not a valid value",
+		},
+		{
+			name: "map with zero metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "0",
+			},
+			expectedResult: 0,
+			expectedError: "metricsCheckInterval should be positive, " +
+				"'0' is not a valid value",
+		},
+		{
+			name: "map with valid metrics check interval entry",
+			annotations: map[string]string{
+				"osiris.deislabs.io/metricsCheckInterval": "60",
+			},
+			expectedResult: 60,
+			expectedError:  "",
+		},
+	}
+
+	for _, test := range testcases {
+		t.Run(test.name, func(t *testing.T) {
+			actual, err := GetMetricsCheckInterval(test.annotations)
+			if len(test.expectedError) > 0 {
+				require.EqualError(t, err, test.expectedError, "")
+			} else {
+				require.NoError(t, err)
+			}
+
+			assert.Equal(t, test.expectedResult, actual)
 		})
 	}
 }

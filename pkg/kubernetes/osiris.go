@@ -1,12 +1,14 @@
 package kubernetes
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 )
 
 const (
-	IgnoredPathsAnnotationName = "osiris.deislabs.io/ignoredPaths"
+	IgnoredPathsAnnotationName         = "osiris.deislabs.io/ignoredPaths"
+	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
 )
 
 // ResourceIsOsirisEnabled checks the annotations to see if the
@@ -50,4 +52,28 @@ func GetIgnoredPaths(annotations map[string]string) []string {
 		return nil
 	}
 	return strings.Split(val, ",")
+}
+
+// GetMetricsCheckInterval gets the interval in which the zeroScaler would
+// repeatedly track the pod http request metrics. The value is the number
+// of seconds of the interval. If it fails to do so, it returns an error.
+func GetMetricsCheckInterval(annotations map[string]string) (int, error) {
+	if len(annotations) == 0 {
+		return 0, nil
+	}
+	val, ok := annotations[metricsCheckIntervalAnnotationName]
+	if !ok {
+		return 0, nil
+	}
+	metricsCheckInterval, err := strconv.Atoi(val)
+	if err != nil {
+		return 0, fmt.Errorf("invalid int value '%s' for '%s' annotation: %s",
+			val, metricsCheckIntervalAnnotationName, err)
+	}
+	if metricsCheckInterval <= 0 {
+		return 0, fmt.Errorf("metricsCheckInterval should be positive, "+
+			"'%d' is not a valid value",
+			metricsCheckInterval)
+	}
+	return metricsCheckInterval, nil
 }
