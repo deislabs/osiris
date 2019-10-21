@@ -111,6 +111,7 @@ func (z *zeroscaler) syncDeployment(obj interface{}) {
 				"Deployment",
 				deployment.Namespace,
 				deployment.Name,
+				deployment.Annotations,
 				deployment.Spec.Selector,
 			)
 		} else {
@@ -164,6 +165,7 @@ func (z *zeroscaler) syncStatefulSet(obj interface{}) {
 				"StatefulSet",
 				statefulSet.Namespace,
 				statefulSet.Name,
+				statefulSet.Annotations,
 				statefulSet.Spec.Selector,
 			)
 		} else {
@@ -226,7 +228,7 @@ func (z *zeroscaler) syncDeletedStatefulSet(obj interface{}) {
 }
 
 func (z *zeroscaler) ensureMetricsCollection(kind, namespace, name string,
-	labelSelector *metav1.LabelSelector) {
+	annotations map[string]string, labelSelector *metav1.LabelSelector) {
 	z.collectorsLock.Lock()
 	defer z.collectorsLock.Unlock()
 	key := getKey(kind, namespace, name)
@@ -236,11 +238,39 @@ func (z *zeroscaler) ensureMetricsCollection(kind, namespace, name string,
 		if ok {
 			collector.stop()
 		}
+		metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
+			annotations,
+		)
+		if err != nil {
+			glog.Warningf(
+				"There was an error getting custom metrics check interval value "+
+					"in %s %s, falling back to the default value of %d "+
+					"seconds; error: %s",
+				kind,
+				name,
+				z.cfg.MetricsCheckInterval,
+				err,
+			)
+			metricsCheckInterval = z.cfg.MetricsCheckInterval
+		}
+		if metricsCheckInterval <= 0 {
+			glog.Warningf(
+				"Invalid custom metrics check interval value %d in %s %s,"+
+					" falling back to the default value of %d seconds",
+				metricsCheckInterval,
+				kind,
+				name,
+				z.cfg.MetricsCheckInterval,
+			)
+			metricsCheckInterval = z.cfg.MetricsCheckInterval
+		}
 		glog.Infof(
-			"Using new metrics collector for %s %s in namespace %s",
+			"Using new metrics collector for %s %s in namespace %s "+
+				"with metrics check interval of %d seconds",
 			kind,
 			name,
 			namespace,
+			metricsCheckInterval,
 		)
 		collector := newMetricsCollector(
 			z.kubeClient,
@@ -248,7 +278,7 @@ func (z *zeroscaler) ensureMetricsCollection(kind, namespace, name string,
 			name,
 			namespace,
 			selector,
-			time.Duration(z.cfg.MetricsCheckInterval)*time.Second,
+			time.Duration(metricsCheckInterval)*time.Second,
 		)
 		go func() {
 			collector.run(z.ctx)
