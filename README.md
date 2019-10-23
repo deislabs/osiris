@@ -184,7 +184,7 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable Osiris for this deployment. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled). Enabling this ensures the zeroscaler component will scrape and analyze metrics from the deployment's pods. |
+| `osiris.deislabs.io/enabled` | Enable the zeroscaler component to scrape and analyze metrics from the deployment's pods and scale the deployment to zero when idle. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/minReplicas` | The minimum number of replicas to set on the deployment when Osiris will scale up. If you set `2`, Osiris will scale the deployment from `0` to `2` replicas directly. Osiris won't collect metrics from deployments which have more than `minReplicas` replicas - to avoid useless collections of metrics. | `1` |
 | `osiris.deislabs.io/metricsCheckInterval` | The interval in which Osiris would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. Note that this value override the global value defined by the `zeroscaler.metricsCheckInterval` Helm value. | _value of the `zeroscaler.metricsCheckInterval` Helm value_ |
 
@@ -192,7 +192,7 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable Osiris for this pod. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled). Enabling this ensures the pod will be injected with the metrics-collecting proxy sidecar container. |
+| `osiris.deislabs.io/enabled` | Enable the metrics collecting proxy sidecar container to be injected into this pod. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 
 #### Service Annotations
 
@@ -200,7 +200,7 @@ The following table lists the supported annotations for Kubernetes `Services` an
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable Osiris for this service. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled). Enabling this ensures the service will have its endpoints managed by the Osiris endpoints controller. |
+| `osiris.deislabs.io/enabled` | Enable this service's endpoints to be managed by the Osiris endpoints controller. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/deployment` | Name of the deployment which is behind this service. This is _required_ to map the service with its deployment. | _no value_ |
 | `osiris.deislabs.io/loadBalancerHostname` | Map requests coming from a specific hostname to this service. Note that if you have multiple hostnames, you can set them with different annotations, using `osiris.deislabs.io/loadBalancerHostname-1`, `osiris.deislabs.io/loadBalancerHostname-2`, ... | _no value_ |
 | `osiris.deislabs.io/ingressHostname` | Map requests coming from a specific hostname to this service. If you use an ingress in front of your service, this is required to create a link between the ingress and the service. Note that if you have multiple hostnames, you can set them with different annotations, using `osiris.deislabs.io/ingressHostname-1`, `osiris.deislabs.io/ingressHostname-2`, ... | _no value_ |
