@@ -12,18 +12,20 @@ development.__
 
 ## How it works
 
-For Osiris-enabled deployments, Osiris automatically instruments application
-pods with a __metrics-collecting proxy__ deployed as a sidecar container.
+Various types of Kubernetes resources can be Osiris-enabled using an annotation.
 
-For any Osiris-enabled deployment that is _already_ scaled to a configurable
-minimum number of replicas (one, by default), the __zeroscaler__ component
-continuously analyzes metrics from each of that deployment's pods. When the
+Osiris-enabled pods are automatically instrumented with a __metrics-collecting
+proxy__ deployed as a sidecar container.
+
+Osiris-enabled deployments (if _already_ scaled to a configurable minimum number
+of replicas-- one by default) automatically have metrics from their pods
+continuously scraped and analyzed by the __zeroscaler__ component. When the
 aggregated metrics reveal that all of the deployment's pods are idling, the
 zeroscaler scales the deployment to zero replicas.
 
 Under normal circumstances, scaling a deployment to zero replicas poses a
 problem: any services that select pods from that deployment (and only that
-deployment) would lose all of their endpoints and become permanently
+deployment) would lose _all_ of their endpoints and become permanently
 unavailable. Osiris-enabled services, however, have their endpoints managed by
 the Osiris __endpoints controller__ (instead of Kubernetes' built-in endpoints
 controller). The Osiris endpoints controller will automatically add Osiris
@@ -138,9 +140,15 @@ spec:
     metadata:
       labels:
         app: nginx
+      annotations:
+        osiris.deislabs.io/enabled: "true"
     # ...
   # ...
 ```
+
+Note that the template for the pod _also_ uses an annotation to enable Osiris--
+in this case, it enables the metrics-collecting proxy sidecar container on all
+of the deployment's pods.
 
 In Kubernetes, there is no direct relationship between deployments and services.
 Deployments manage pods and services may select pods managed by one or more
@@ -176,9 +184,15 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable Osiris for this deployment. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/enabled` | Enable the zeroscaler component to scrape and analyze metrics from the deployment's pods and scale the deployment to zero when idle. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/minReplicas` | The minimum number of replicas to set on the deployment when Osiris will scale up. If you set `2`, Osiris will scale the deployment from `0` to `2` replicas directly. Osiris won't collect metrics from deployments which have more than `minReplicas` replicas - to avoid useless collections of metrics. | `1` |
 | `osiris.deislabs.io/metricsCheckInterval` | The interval in which Osiris would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. Note that this value override the global value defined by the `zeroscaler.metricsCheckInterval` Helm value. | _value of the `zeroscaler.metricsCheckInterval` Helm value_ |
+
+#### Pod Annotations
+
+| Annotation | Description | Default |
+| ---------- | ----------- | ------- |
+| `osiris.deislabs.io/enabled` | Enable the metrics collecting proxy sidecar container to be injected into this pod. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 
 #### Service Annotations
 
@@ -186,8 +200,8 @@ The following table lists the supported annotations for Kubernetes `Services` an
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable Osiris for this service. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
-| `osiris.deislabs.io/deployment` | Name of the deployment which is behind this service. This is required to map the service with its deployment. | _no value_ |
+| `osiris.deislabs.io/enabled` | Enable this service's endpoints to be managed by the Osiris endpoints controller. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/deployment` | Name of the deployment which is behind this service. This is _required_ to map the service with its deployment. | _no value_ |
 | `osiris.deislabs.io/loadBalancerHostname` | Map requests coming from a specific hostname to this service. Note that if you have multiple hostnames, you can set them with different annotations, using `osiris.deislabs.io/loadBalancerHostname-1`, `osiris.deislabs.io/loadBalancerHostname-2`, ... | _no value_ |
 | `osiris.deislabs.io/ingressHostname` | Map requests coming from a specific hostname to this service. If you use an ingress in front of your service, this is required to create a link between the ingress and the service. Note that if you have multiple hostnames, you can set them with different annotations, using `osiris.deislabs.io/ingressHostname-1`, `osiris.deislabs.io/ingressHostname-2`, ... | _no value_ |
 | `osiris.deislabs.io/ingressDefaultPort` | Custom service port when the request comes from an ingress. Default behaviour if there are more than 1 port on the service, is to look for a port named `http`, and fallback to the port `80`. Set this if you have multiple ports and using a non-standard port with a non-standard name. | _no value_ |
