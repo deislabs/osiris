@@ -40,7 +40,7 @@ func (i *injector) getPodPatchOperations(
 		req.UserInfo,
 	)
 
-	if !kubernetes.ResourceIsOsirisEnabled(pod.Annotations) ||
+	if !kubernetes.PodIsEligibleForProxyInjection(pod.Annotations) ||
 		(podContainsProxyInitContainer(&pod) && podContainsProxyContainer(&pod)) {
 		return nil, nil
 	}

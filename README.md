@@ -141,7 +141,7 @@ spec:
       labels:
         app: nginx
       annotations:
-        osiris.deislabs.io/enabled: "true"
+        osiris.deislabs.io/injectProxy: "true"
     # ...
   # ...
 ```
@@ -192,7 +192,7 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable the metrics collecting proxy sidecar container to be injected into this pod. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/injectProxy` | Inject a transparent proxy as a sidecar container into this pod. This is _required_ for metrics collection. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 
 #### Service Annotations
 
