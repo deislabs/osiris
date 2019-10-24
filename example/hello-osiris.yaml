@@ -55,6 +55,8 @@ spec:
     metadata:
       labels:
         app: hello-osiris
+      annotations:
+        osiris.deislabs.io/enabled: "true"
     spec:
       containers:
       - name: hello-osiris

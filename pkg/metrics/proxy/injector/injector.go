@@ -68,8 +68,7 @@ func (i *injector) Run(ctx context.Context) {
 	}()
 
 	glog.Infof(
-		"Proxy injector is listening on %s, patching Osiris-enabled "+
-			"deployments, statefulSets and pods",
+		"Proxy injector is listening on %s, patching Osiris-enabled pods",
 		i.srv.Addr,
 	)
 	err := i.srv.ListenAndServeTLS(i.config.TLSCertFile, i.config.TLSKeyFile)
@@ -113,10 +112,6 @@ func (i *injector) handleRequest(w http.ResponseWriter, r *http.Request) {
 		glog.Errorf("Can't decode body: %v", err)
 	} else {
 		switch ar.Request.Kind.Kind {
-		case "Deployment":
-			patchOps, err = i.getDeploymentPatchOperations(&ar)
-		case "StatefulSet":
-			patchOps, err = i.getStatefulSetPatchOperations(&ar)
 		case "Pod":
 			patchOps, err = i.getPodPatchOperations(&ar)
 		default:

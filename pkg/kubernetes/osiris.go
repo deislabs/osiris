@@ -7,13 +7,14 @@ import (
 )
 
 const (
+	osirisEnabledAnnotationName        = "osiris.deislabs.io/enabled"
 	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
 )
 
 // ResourceIsOsirisEnabled checks the annotations to see if the
 // kube resource is enabled for osiris or not.
 func ResourceIsOsirisEnabled(annotations map[string]string) bool {
-	enabled, ok := annotations["osiris.deislabs.io/enabled"]
+	enabled, ok := annotations[osirisEnabledAnnotationName]
 	if !ok {
 		return false
 	}

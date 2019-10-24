@@ -16,50 +16,48 @@ func TestResourceIsOsirisEnabled(t *testing.T) {
 		{
 			name: "map with osiris enabled entry and value 1",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "1",
+				osirisEnabledAnnotationName: "1",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value true",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "true",
+				osirisEnabledAnnotationName: "true",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value on",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "on",
+				osirisEnabledAnnotationName: "on",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value y",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "y",
+				osirisEnabledAnnotationName: "y",
 			},
 			expectedResult: true,
 		},
 		{
 			name: "map with osiris enabled entry and value yes",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "yes",
+				osirisEnabledAnnotationName: "yes",
 			},
 			expectedResult: true,
 		},
 		{
-			name: "map with no osiris enabled entry ",
-			annotations: map[string]string{
-				"osiris.deislabs.io/notenabled": "yes",
-			},
+			name:           "map with no osiris enabled entry",
+			annotations:    map[string]string{},
 			expectedResult: false,
 		},
 
 		{
 			name: "map with osiris enabled entry and invalid value",
 			annotations: map[string]string{
-				"osiris.deislabs.io/enabled": "yee",
+				osirisEnabledAnnotationName: "yee",
 			},
 			expectedResult: false,
 		},
