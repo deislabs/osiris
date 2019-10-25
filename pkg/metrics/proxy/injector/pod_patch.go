@@ -10,6 +10,7 @@ import (
 	"k8s.io/api/admission/v1beta1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/api/resource"
 )
 
 const (
@@ -152,6 +153,16 @@ func (i *injector) getPodPatchOperations(
 						Port: intstr.FromInt(int(metricsAndHealthPort)),
 						Path: "/healthz",
 					},
+				},
+			},
+			Resources: corev1.ResourceRequirements{
+				Limits: corev1.ResourceList{
+					"cpu":    resource.MustParse("250m"),
+					"memory": resource.MustParse("256Mi"),
+				},
+				Requests: corev1.ResourceList{
+					"cpu":    resource.MustParse("100m"),
+					"memory": resource.MustParse("128Mi"),
 				},
 			},
 		}
