@@ -9,7 +9,7 @@ import (
 const (
 	IgnoredPathsAnnotationName         = "osiris.deislabs.io/ignoredPaths"
 	osirisEnabledAnnotationName        = "osiris.deislabs.io/enabled"
-	injectProxyAnnotationName          = "osiris.deislabs.io/injectProxy"
+	collectMetricsAnnotationName       = "osiris.deislabs.io/collectMetrics"
 	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
 )
 
@@ -22,7 +22,7 @@ func ResourceIsOsirisEnabled(annotations map[string]string) bool {
 // PodIsEligibleForProxyInjection checks the annotations to see if the
 // pod is eligible for proxy injection or not.
 func PodIsEligibleForProxyInjection(annotations map[string]string) bool {
-	return annotationBooleanValue(annotations, injectProxyAnnotationName)
+	return annotationBooleanValue(annotations, collectMetricsAnnotationName)
 }
 
 func annotationBooleanValue(annotations map[string]string, key string) bool {

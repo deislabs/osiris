@@ -56,7 +56,7 @@ spec:
       labels:
         app: hello-osiris
       annotations:
-        osiris.deislabs.io/injectProxy: "true"
+        osiris.deislabs.io/collectMetrics: "true"
         osiris.deislabs.io/ignoredPaths: "/first/path,/second-path"
     spec:
       containers:
