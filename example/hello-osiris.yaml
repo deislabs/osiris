@@ -57,6 +57,7 @@ spec:
         app: hello-osiris
       annotations:
         osiris.deislabs.io/enabled: "true"
+        osiris.deislabs.io/ignoredPaths: "/first/path,/second-path"
     spec:
       containers:
       - name: hello-osiris

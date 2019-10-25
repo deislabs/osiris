@@ -26,6 +26,7 @@ type proxy struct {
 	connectionsClosed    *uint64
 	dynamicProxies       []tcp.DynamicProxy
 	healthzAndMetricsSvr *http.Server
+	ignoredPaths         map[string]struct{}
 }
 
 func NewProxy(cfg Config) (Proxy, error) {
@@ -40,6 +41,7 @@ func NewProxy(cfg Config) (Proxy, error) {
 			Addr:    fmt.Sprintf(":%d", cfg.MetricsAndHealthPort),
 			Handler: healthzAndMetricsMux,
 		},
+		ignoredPaths: cfg.IgnoredPaths,
 	}
 
 	for listenPort, targetPort := range cfg.PortMappings {
@@ -47,13 +49,13 @@ func NewProxy(cfg Config) (Proxy, error) {
 		dynamicProxy, err := tcp.NewDynamicProxy(
 			fmt.Sprintf(":%d", listenPort),
 			func(r *http.Request) (string, int, error) {
-				if !isKubeProbe(r) {
+				if !p.isIgnoredRequest(r) {
 					atomic.AddUint64(p.connectionsOpened, 1)
 				}
 				return "localhost", tp, nil
 			},
 			func(r *http.Request) error {
-				if !isKubeProbe(r) {
+				if !p.isIgnoredRequest(r) {
 					atomic.AddUint64(p.connectionsClosed, 1)
 				}
 				return nil
@@ -137,6 +139,18 @@ func (p *proxy) handleMetricsRequest(w http.ResponseWriter, _ *http.Request) {
 	if _, err := w.Write(pcsBytes); err != nil {
 		glog.Errorf("Error writing metrics request response body: %s", err)
 	}
+}
+
+func (p *proxy) isIgnoredRequest(r *http.Request) bool {
+	return p.isIgnoredPath(r) || isKubeProbe(r)
+}
+
+func (p *proxy) isIgnoredPath(r *http.Request) bool {
+	if r.URL == nil || len(r.URL.Path) == 0 {
+		return false
+	}
+	_, found := p.ignoredPaths[r.URL.Path]
+	return found
 }
 
 func isKubeProbe(r *http.Request) bool {
