@@ -126,48 +126,25 @@ func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 	defer z.collectorsLock.Unlock()
 	key := getDeploymentKey(deployment)
 	selector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
+	metricsCheckInterval := z.getMetricsCheckInterval(deployment)
 	if collector, ok := z.collectors[key]; !ok ||
-		!reflect.DeepEqual(selector, collector.selector) {
+		shouldUpdateCollector(collector, selector, metricsCheckInterval) {
 		if ok {
 			collector.stop()
 		}
-		metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
-			deployment.Annotations,
-		)
-		if err != nil {
-			glog.Warningf(
-				"There was an error getting custom metrics check interval value "+
-					"in deployment %s, falling back to the default value of %d "+
-					"seconds; error: %s",
-				deployment.Name,
-				z.cfg.MetricsCheckInterval,
-				err,
-			)
-			metricsCheckInterval = z.cfg.MetricsCheckInterval
-		}
-		if metricsCheckInterval <= 0 {
-			glog.Warningf(
-				"Invalid custom metrics check interval value %d in deployment %s,"+
-					" falling back to the default value of %d seconds",
-				metricsCheckInterval,
-				deployment.Name,
-				z.cfg.MetricsCheckInterval,
-			)
-			metricsCheckInterval = z.cfg.MetricsCheckInterval
-		}
 		glog.Infof(
 			"Using new metrics collector for deployment %s in namespace %s "+
-				"with metrics check interval of %d seconds",
+				"with metrics check interval of %s",
 			deployment.Name,
 			deployment.Namespace,
-			metricsCheckInterval,
+			metricsCheckInterval.String(),
 		)
 		collector := newMetricsCollector(
 			z.kubeClient,
 			deployment.Name,
 			deployment.Namespace,
 			selector,
-			time.Duration(metricsCheckInterval)*time.Second,
+			metricsCheckInterval,
 		)
 		go func() {
 			collector.run(z.ctx)
@@ -195,6 +172,50 @@ func (z *zeroscaler) ensureNoMetricsCollection(deployment *appsv1.Deployment) {
 		collector.stop()
 		delete(z.collectors, key)
 	}
+}
+
+func (z *zeroscaler) getMetricsCheckInterval(
+	deployment *appsv1.Deployment,
+) time.Duration {
+	metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
+		deployment.Annotations,
+	)
+	if err != nil {
+		glog.Warningf(
+			"There was an error getting custom metrics check interval value "+
+				"in deployment %s, falling back to the default value of %d "+
+				"seconds; error: %s",
+			deployment.Name,
+			z.cfg.MetricsCheckInterval,
+			err,
+		)
+		metricsCheckInterval = z.cfg.MetricsCheckInterval
+	}
+	if metricsCheckInterval <= 0 {
+		glog.Warningf(
+			"Invalid custom metrics check interval value %d in deployment %s,"+
+				" falling back to the default value of %d seconds",
+			metricsCheckInterval,
+			deployment.Name,
+			z.cfg.MetricsCheckInterval,
+		)
+		metricsCheckInterval = z.cfg.MetricsCheckInterval
+	}
+	return time.Duration(metricsCheckInterval) * time.Second
+}
+
+func shouldUpdateCollector(
+	collector *metricsCollector,
+	newSelector labels.Selector,
+	newMetricsCheckInterval time.Duration,
+) bool {
+	if !reflect.DeepEqual(newSelector, collector.selector) {
+		return true
+	}
+	if newMetricsCheckInterval != collector.metricsCheckInterval {
+		return true
+	}
+	return false
 }
 
 func getDeploymentKey(deployment *appsv1.Deployment) string {
