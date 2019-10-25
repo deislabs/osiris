@@ -18,12 +18,15 @@ var portMappingRegex = regexp.MustCompile(`^(?:\d+\:\d+,)*(?:\d+\:\d+)$`)
 type config struct {
 	PortMappings         string `envconfig:"PORT_MAPPINGS" required:"true"`
 	MetricsAndHealthPort int    `envconfig:"METRICS_AND_HEALTH_PORT" required:"true"` // nolint: lll
+	// comma-separated list of URL paths that won't be counted
+	IgnoredPaths string `envconfig:"IGNORED_PATHS"`
 }
 
 // Config represents configuration options for the Osiris Proxy
 type Config struct {
 	PortMappings         map[int]int
 	MetricsAndHealthPort int
+	IgnoredPaths         map[string]struct{}
 }
 
 // NewConfigWithDefaults returns a Config object with default values already
@@ -58,6 +61,14 @@ func GetConfigFromEnvironment() (Config, error) {
 	}
 
 	c.MetricsAndHealthPort = internalC.MetricsAndHealthPort
+
+	ignoredPaths := strings.Split(internalC.IgnoredPaths, ",")
+	if len(ignoredPaths) > 0 {
+		c.IgnoredPaths = make(map[string]struct{}, len(ignoredPaths))
+		for _, ignoredPath := range ignoredPaths {
+			c.IgnoredPaths[ignoredPath] = struct{}{}
+		}
+	}
 
 	return c, nil
 }

@@ -190,9 +190,12 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 
 #### Pod Annotations
 
+The following table lists the supported annotations for Kubernetes `Pods` and their default values.
+
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/injectProxy` | Inject a transparent proxy as a sidecar container into this pod. This is _required_ for metrics collection. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/injectProxy` | Enable the metrics collecting proxy sidecar container to be injected into this pod. Inject a transparent proxy as a sidecar container into this pod. This is _required_ for metrics collection. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Format: comma-separated string. | _no value_ |
 
 #### Service Annotations
 

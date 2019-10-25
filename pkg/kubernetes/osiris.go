@@ -7,6 +7,7 @@ import (
 )
 
 const (
+	IgnoredPathsAnnotationName         = "osiris.deislabs.io/ignoredPaths"
 	osirisEnabledAnnotationName        = "osiris.deislabs.io/enabled"
 	injectProxyAnnotationName          = "osiris.deislabs.io/injectProxy"
 	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
