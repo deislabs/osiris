@@ -37,16 +37,6 @@ webhooks:
     caBundle: {{ b64enc $ca.Cert }}
   rules:
   - apiGroups:
-    - apps
-    apiVersions:
-    - v1
-    resources:
-    - deployments
-    - statefulsets
-    operations:
-    - CREATE
-    - UPDATE
-  - apiGroups:
     - ""
     apiVersions:
     - v1
