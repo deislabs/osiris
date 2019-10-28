@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync"
 	"time"
 
@@ -177,19 +178,24 @@ func (z *zeroscaler) ensureNoMetricsCollection(deployment *appsv1.Deployment) {
 func (z *zeroscaler) getMetricsCheckInterval(
 	deployment *appsv1.Deployment,
 ) time.Duration {
-	metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
-		deployment.Annotations,
+	var (
+		metricsCheckInterval int
+		err                  error
 	)
-	if err != nil {
-		glog.Warningf(
-			"There was an error getting custom metrics check interval value "+
-				"in deployment %s, falling back to the default value of %d "+
-				"seconds; error: %s",
-			deployment.Name,
-			z.cfg.MetricsCheckInterval,
-			err,
-		)
-		metricsCheckInterval = z.cfg.MetricsCheckInterval
+	if rawMetricsCheckInterval, ok :=
+		deployment.Annotations[k8s.MetricsCheckIntervalAnnotationName]; ok {
+		metricsCheckInterval, err = strconv.Atoi(rawMetricsCheckInterval)
+		if err != nil {
+			glog.Warningf(
+				"There was an error getting custom metrics check interval value "+
+					"in deployment %s, falling back to the default value of %d "+
+					"seconds; error: %s",
+				deployment.Name,
+				z.cfg.MetricsCheckInterval,
+				err,
+			)
+			metricsCheckInterval = z.cfg.MetricsCheckInterval
+		}
 	}
 	if metricsCheckInterval <= 0 {
 		glog.Warningf(
