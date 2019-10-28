@@ -7,78 +7,102 @@ import (
 )
 
 func (a *activator) activateAndWait(hostname string) (string, int, error) {
-	glog.Infof("Request received for for host %s", hostname)
+	glog.Infof("Request received for host %s", hostname)
 
 	a.indicesLock.RLock()
 	app, ok := a.appsByHost[hostname]
 	a.indicesLock.RUnlock()
 	if !ok {
-		return "", 0, fmt.Errorf("No deployment found for host %s", hostname)
+		return "", 0, fmt.Errorf(
+			"No deployment or statefulSet found for host %s",
+			hostname,
+		)
 	}
 
 	glog.Infof(
-		"Deployment %s in namespace %s may require activation",
-		app.deploymentName,
+		"%s %s in namespace %s may require activation",
+		app.kind,
+		app.name,
 		app.namespace,
 	)
 
-	// Are we already activating the deployment in question?
+	// Are we already activating the deployment/statefulset in question?
 	var err error
-	deploymentKey := getKey(app.namespace, app.deploymentName)
-	deploymentActivation, ok := a.deploymentActivations[deploymentKey]
+	appKey := getKey(app.namespace, app.kind, app.name)
+	appActivation, ok := a.appActivations[appKey]
 	if ok {
 		glog.Infof(
-			"Found activation in-progress for deployment %s in namespace %s",
-			app.deploymentName,
+			"Found activation in-progress for %s %s in namespace %s",
+			app.kind,
+			app.name,
 			app.namespace,
 		)
 	} else {
 		func() {
-			a.deploymentActivationsLock.Lock()
-			defer a.deploymentActivationsLock.Unlock()
-			// Some other goroutine could have initiated activation of this deployment
-			// while we were waiting for the lock. Now that we have the lock, do we
-			// still need to do this?
-			deploymentActivation, ok = a.deploymentActivations[deploymentKey]
+			a.appActivationsLock.Lock()
+			defer a.appActivationsLock.Unlock()
+			// Some other goroutine could have initiated activation of this
+			// deployment/statefulSet while we were waiting for the lock.
+			// Now that we have the lock, do we still need to do this?
+			appActivation, ok = a.appActivations[appKey]
 			if ok {
 				glog.Infof(
-					"Found activation in-progress for deployment %s in namespace %s",
-					app.deploymentName,
+					"Found activation in-progress for %s %s in namespace %s",
+					app.kind,
+					app.name,
 					app.namespace,
 				)
 				return
 			}
 			glog.Infof(
-				"Found NO activation in-progress for deployment %s in namespace %s",
-				app.deploymentName,
+				"Found NO activation in-progress for %s %s in namespace %s",
+				app.kind,
+				app.name,
 				app.namespace,
 			)
 			// Initiate activation (or discover that it may already have been started
 			// by another activator process)
-			if deploymentActivation, err = a.activateDeployment(app); err != nil {
+			switch app.kind {
+			case appKindDeployment:
+				appActivation, err = a.activateDeployment(app)
+			case appKindStatefulSet:
+				appActivation, err = a.activateStatefulSet(app)
+			default:
+				glog.Errorf("unknown app kind %s", app.kind)
+				return
+			}
+			if err != nil {
+				glog.Errorf(
+					"%s activation for %s in namespace %s failed: %s",
+					app.kind,
+					app.name,
+					app.namespace,
+					err,
+				)
 				return
 			}
 			// Add it to the index of in-flight activation
-			a.deploymentActivations[deploymentKey] = deploymentActivation
+			a.appActivations[appKey] = appActivation
 			// But remove it from that index when it's complete
 			go func() {
 				deleteActivation := func() {
-					a.deploymentActivationsLock.Lock()
-					defer a.deploymentActivationsLock.Unlock()
-					delete(a.deploymentActivations, deploymentKey)
+					a.appActivationsLock.Lock()
+					defer a.appActivationsLock.Unlock()
+					delete(a.appActivations, appKey)
 				}
 				select {
-				case <-deploymentActivation.successCh:
+				case <-appActivation.successCh:
 					deleteActivation()
-				case <-deploymentActivation.timeoutCh:
+				case <-appActivation.timeoutCh:
 					deleteActivation()
 				}
 			}()
 		}()
 		if err != nil {
 			return "", 0, fmt.Errorf(
-				"Error activating deployment %s in namespace %s: %s",
-				app.deploymentName,
+				"Error activating %s %s in namespace %s: %s",
+				app.kind,
+				app.name,
 				app.namespace,
 				err,
 			)
@@ -89,12 +113,13 @@ func (a *activator) activateAndWait(hostname string) (string, int, error) {
 	// progress, we need to wait for that activation to be completed... or fail...
 	// or time out.
 	select {
-	case <-deploymentActivation.successCh:
+	case <-appActivation.successCh:
 		return app.targetHost, app.targetPort, nil
-	case <-deploymentActivation.timeoutCh:
+	case <-appActivation.timeoutCh:
 		return "", 0, fmt.Errorf(
-			"Timed out waiting for activation of deployment %s in namespace %s: %s",
-			app.deploymentName,
+			"Timed out waiting for activation of %s %s in namespace %s: %s",
+			app.kind,
+			app.name,
 			app.namespace,
 			err,
 		)

@@ -14,7 +14,7 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-type deploymentActivation struct {
+type appActivation struct {
 	readyAppPodIPs map[string]struct{}
 	endpoints      *corev1.Endpoints
 	lock           sync.Mutex
@@ -22,14 +22,14 @@ type deploymentActivation struct {
 	timeoutCh      chan struct{}
 }
 
-func (d *deploymentActivation) watchForCompletion(
+func (a *appActivation) watchForCompletion(
 	kubeClient kubernetes.Interface,
 	app *app,
 	appPodSelector labels.Selector,
 ) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	// Watch the pods managed by this deployment
+	// Watch the pods managed by this deployment/statefulSet
 	podsInformer := k8s.PodsIndexInformer(
 		kubeClient,
 		app.namespace,
@@ -37,11 +37,11 @@ func (d *deploymentActivation) watchForCompletion(
 		appPodSelector,
 	)
 	podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: d.syncPod,
+		AddFunc: a.syncPod,
 		UpdateFunc: func(_, newObj interface{}) {
-			d.syncPod(newObj)
+			a.syncPod(newObj)
 		},
-		DeleteFunc: d.syncPod,
+		DeleteFunc: a.syncPod,
 	})
 	// Watch the corresponding endpoints resource for this service
 	endpointsInformer := k8s.EndpointsIndexInformer(
@@ -54,9 +54,9 @@ func (d *deploymentActivation) watchForCompletion(
 		nil,
 	)
 	endpointsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
-		AddFunc: d.syncEndpoints,
+		AddFunc: a.syncEndpoints,
 		UpdateFunc: func(_, newObj interface{}) {
-			d.syncEndpoints(newObj)
+			a.syncEndpoints(newObj)
 		},
 	})
 	go podsInformer.Run(ctx.Done())
@@ -65,23 +65,24 @@ func (d *deploymentActivation) watchForCompletion(
 	defer timer.Stop()
 	for {
 		select {
-		case <-d.successCh:
+		case <-a.successCh:
 			return
 		case <-timer.C:
 			glog.Errorf(
-				"Activation of deployment %s in namespace %s timed out",
-				app.deploymentName,
+				"Activation of %s %s in namespace %s timed out",
+				app.kind,
+				app.name,
 				app.namespace,
 			)
-			close(d.timeoutCh)
+			close(a.timeoutCh)
 			return
 		}
 	}
 }
 
-func (d *deploymentActivation) syncPod(obj interface{}) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
+func (a *appActivation) syncPod(obj interface{}) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
 	pod := obj.(*corev1.Pod)
 	var ready bool
 	for _, condition := range pod.Status.Conditions {
@@ -94,27 +95,27 @@ func (d *deploymentActivation) syncPod(obj interface{}) {
 	}
 	// Keep track of which pods are ready
 	if ready {
-		d.readyAppPodIPs[pod.Status.PodIP] = struct{}{}
+		a.readyAppPodIPs[pod.Status.PodIP] = struct{}{}
 	} else {
-		delete(d.readyAppPodIPs, pod.Status.PodIP)
+		delete(a.readyAppPodIPs, pod.Status.PodIP)
 	}
-	d.checkActivationComplete()
+	a.checkActivationComplete()
 }
 
-func (d *deploymentActivation) syncEndpoints(obj interface{}) {
-	d.lock.Lock()
-	defer d.lock.Unlock()
-	d.endpoints = obj.(*corev1.Endpoints)
-	d.checkActivationComplete()
+func (a *appActivation) syncEndpoints(obj interface{}) {
+	a.lock.Lock()
+	defer a.lock.Unlock()
+	a.endpoints = obj.(*corev1.Endpoints)
+	a.checkActivationComplete()
 }
 
-func (d *deploymentActivation) checkActivationComplete() {
-	if d.endpoints != nil {
-		for _, subset := range d.endpoints.Subsets {
+func (a *appActivation) checkActivationComplete() {
+	if a.endpoints != nil {
+		for _, subset := range a.endpoints.Subsets {
 			for _, address := range subset.Addresses {
-				if _, ok := d.readyAppPodIPs[address.IP]; ok {
+				if _, ok := a.readyAppPodIPs[address.IP]; ok {
 					glog.Infof("App pod with ip %s is in service", address.IP)
-					close(d.successCh)
+					close(a.successCh)
 					return
 				}
 			}

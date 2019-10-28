@@ -26,8 +26,9 @@ const (
 
 type metricsCollector struct {
 	kubeClient           kubernetes.Interface
-	deploymentName       string
-	deploymentNamespace  string
+	appKind              string
+	appName              string
+	appNamespace         string
 	selector             labels.Selector
 	metricsCheckInterval time.Duration
 	podsInformer         cache.SharedIndexInformer
@@ -40,20 +41,22 @@ type metricsCollector struct {
 
 func newMetricsCollector(
 	kubeClient kubernetes.Interface,
-	deploymentName string,
-	deploymentNamespace string,
+	appKind string,
+	appName string,
+	appNamespace string,
 	selector labels.Selector,
 	metricsCheckInterval time.Duration,
 ) *metricsCollector {
 	m := &metricsCollector{
 		kubeClient:           kubeClient,
-		deploymentName:       deploymentName,
-		deploymentNamespace:  deploymentNamespace,
+		appKind:              appKind,
+		appName:              appName,
+		appNamespace:         appNamespace,
 		selector:             selector,
 		metricsCheckInterval: metricsCheckInterval,
 		podsInformer: k8s.PodsIndexInformer(
 			kubeClient,
-			deploymentNamespace,
+			appNamespace,
 			nil,
 			selector,
 		),
@@ -82,15 +85,17 @@ func (m *metricsCollector) run(ctx context.Context) {
 	go func() {
 		<-ctx.Done()
 		glog.Infof(
-			"Stopping metrics collection for deployment %s in namespace %s",
-			m.deploymentName,
-			m.deploymentNamespace,
+			"Stopping metrics collection for %s %s in namespace %s",
+			m.appKind,
+			m.appName,
+			m.appNamespace,
 		)
 	}()
 	glog.Infof(
-		"Starting metrics collection for deployment %s in namespace %s",
-		m.deploymentName,
-		m.deploymentNamespace,
+		"Starting metrics collection for %s %s in namespace %s",
+		m.appKind,
+		m.appName,
+		m.appNamespace,
 	)
 	go m.podsInformer.Run(ctx.Done())
 	// When this exits, the cancel func will stop the informer
@@ -143,7 +148,7 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 				timer := time.NewTimer(3 * time.Second)
 				defer timer.Stop()
 				var timedOut bool
-				// Get metrics for all of the deployment's CURRENT pods.
+				// Get metrics for all of the deployment/statefulSet's CURRENT pods.
 				var scrapeWG sync.WaitGroup
 				for _, pod := range m.currentAppPods {
 					podMetricsPort, ok := getMetricsPort(pod)
@@ -176,10 +181,10 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 				if periodStartTime == nil {
 					return
 				}
-				// Now iterate over stats for ALL of the deployment's pods-- this may
-				// include pods that died since the last check-- their stats should
-				// still count, but since we won't have stats for those, we'll have to
-				// err on the side of caution and assume activity in such cases.
+				// Now iterate over stats for ALL of the deployment/statefulSet's pods
+				// --this may include pods that died since the last check-- their stats
+				// should still count, but since we won't have stats for those, we'll
+				// have to err on the side of caution and assume activity in such cases.
 				var foundActivity, assumedActivity bool
 				for podName, ps := range m.allAppPodStats {
 					if ps.podDeletedTime != nil &&
@@ -281,9 +286,10 @@ func (m *metricsCollector) scrape(
 
 func (m *metricsCollector) scaleToZero() {
 	glog.Infof(
-		"Scale to zero starting for deployment %s in namespace %s",
-		m.deploymentName,
-		m.deploymentNamespace,
+		"Scale to zero starting for %s %s in namespace %s",
+		m.appKind,
+		m.appName,
+		m.appNamespace,
 	)
 
 	patches := []k8s.PatchOperation{{
@@ -292,23 +298,38 @@ func (m *metricsCollector) scaleToZero() {
 		Value: 0,
 	}}
 	patchesBytes, _ := json.Marshal(patches)
-	if _, err := m.kubeClient.AppsV1().Deployments(m.deploymentNamespace).Patch(
-		m.deploymentName,
-		k8s_types.JSONPatchType,
-		patchesBytes,
-	); err != nil {
+	var err error
+	switch m.appKind {
+	case "Deployment":
+		_, err = m.kubeClient.AppsV1().Deployments(m.appNamespace).Patch(
+			m.appName,
+			k8s_types.JSONPatchType,
+			patchesBytes,
+		)
+	case "StatefulSet":
+		_, err = m.kubeClient.AppsV1().StatefulSets(m.appNamespace).Patch(
+			m.appName,
+			k8s_types.JSONPatchType,
+			patchesBytes,
+		)
+	default:
+		err = fmt.Errorf("unknown kind '%s'", m.appKind)
+	}
+	if err != nil {
 		glog.Errorf(
-			"Error scaling deployment %s in namespace %s to zero: %s",
-			m.deploymentName,
-			m.deploymentNamespace,
+			"Error scaling %s %s in namespace %s to zero: %s",
+			m.appKind,
+			m.appName,
+			m.appNamespace,
 			err,
 		)
 		return
 	}
 
 	glog.Infof(
-		"Scaled deployment %s in namespace %s to zero",
-		m.deploymentName,
-		m.deploymentNamespace,
+		"Scaled %s %s in namespace %s to zero",
+		m.appKind,
+		m.appName,
+		m.appNamespace,
 	)
 }

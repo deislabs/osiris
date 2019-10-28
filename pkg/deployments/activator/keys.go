@@ -4,6 +4,6 @@ import (
 	"fmt"
 )
 
-func getKey(namespace, name string) string {
-	return fmt.Sprintf("%s:%s", namespace, name)
+func getKey(namespace string, kind appKind, name string) string {
+	return fmt.Sprintf("%s:%s/%s", kind, namespace, name)
 }

@@ -98,8 +98,8 @@ func (e *endpointsManager) run(ctx context.Context) {
 		)
 	}()
 	e.podsInformer.Run(ctx.Done())
-	// force an initial sync of the endpoints for deployments that are initially
-	// scaled to 0, and for which we won't see Pod events.
+	// force an initial sync of the endpoints for deployments/statefulsets
+	// that are initially scaled to 0, and for which we won't see Pod events.
 	e.syncEndpoints()
 }
 
