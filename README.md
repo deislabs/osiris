@@ -187,6 +187,7 @@ The following table lists the supported annotations for Kubernetes `Deployments`
 | `osiris.deislabs.io/enabled` | Enable the zeroscaler component to scrape and analyze metrics from the deployment's pods and scale the deployment to zero when idle. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/minReplicas` | The minimum number of replicas to set on the deployment when Osiris will scale up. If you set `2`, Osiris will scale the deployment from `0` to `2` replicas directly. Osiris won't collect metrics from deployments which have more than `minReplicas` replicas - to avoid useless collections of metrics. | `1` |
 | `osiris.deislabs.io/metricsCheckInterval` | The interval in which Osiris would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. Note that this value override the global value defined by the `zeroscaler.metricsCheckInterval` Helm value. | _value of the `zeroscaler.metricsCheckInterval` Helm value_ |
+| `osiris.deislabs.io/metricsCollector` | Configure the collection of metrics for a deployment's pods. The value is a JSON object with at least a `type` string, and an optional `implementation` object. See the *Metrics Scraping* section for more. | `{ "type": "osiris" }` |
 
 #### Pod Annotations
 
@@ -211,6 +212,49 @@ The following table lists the supported annotations for Kubernetes `Services` an
 | `osiris.deislabs.io/tlsPort` | Custom port for TLS-secured requests. Default behaviour if there are more than 1 port on the service, is to look for a port named `https`, and fallback to the port `443`. Set this if you have multiple ports and using a non-standard TLS port with a non-standard name. | _no value_ |
 
 Note that you might see an `osiris.deislabs.io/selector` annotation - this is for internal use only, and you shouldn't try to set/update or delete it.
+
+#### Metrics Scraping Configuration
+
+Scraping the metrics from the pods is done automatically using Osiris provided sidecar container by default. But if you don't want to use the auto-injected sidecar container, you can also configure a custom metrics scraper, using the `osiris.deislabs.io/metricsCollector` annotation on your deployment.
+
+The following scrapers are supported:
+
+**osiris**
+
+This is the default scraper, which doesn't need any configuration.
+
+**prometheus**
+
+The prometheus scraper retrieves metrics about the opened & closed connections from your own prometheus endpoint. To use it, your application need to expose an endpoint with metrics in the prometheus format.
+You can then set the following annotation:
+
+```
+annotations:
+  osiris.deislabs.io/metricsCollector: |
+    {
+      "type": "prometheus",
+      "implementation": {
+        "port": 8080,
+				"path": "/metrics",
+				"openedConnectionsMetricName": "connections",
+				"openedConnectionsMetricLabels": {
+					"type": "opened"
+				},
+				"closedConnectionsMetricName": "connections",
+				"closedConnectionsMetricLabels": {
+					"type": "closed"
+				}
+      }
+    }
+```
+
+The schema of the prometheus implementation configuration is:
+- a mandatory `port` integer
+- an optional `path` string - default to `/metrics` if not set
+- a mandatory `openedConnectionsMetricName` string, for the name of the metric that expose the number of opened connections
+- a mandatory `closedConnectionsMetricName` string, for the name of the metric that expose the number of closed connections
+- an optional `openedConnectionsMetricLabels` object, for all labels that should match the metric for opened connections
+- an optional `closedConnectionsMetricLabels` object, for all labels that should match the metric for closed connections
 
 ### Demo
 
