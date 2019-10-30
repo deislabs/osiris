@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"sync"
-	"time"
 
 	"github.com/deislabs/osiris/pkg/healthz"
 	k8s "github.com/deislabs/osiris/pkg/kubernetes"
@@ -33,7 +32,6 @@ type activator struct {
 	deploymentActivationsLock sync.Mutex
 	dynamicProxyListenAddrStr string
 	dynamicProxy              tcp.DynamicProxy
-	httpClient                *http.Client
 }
 
 func NewActivator(kubeClient kubernetes.Interface) (Activator, error) {
@@ -57,9 +55,6 @@ func NewActivator(kubeClient kubernetes.Interface) (Activator, error) {
 		nodeAddresses:             map[string]struct{}{},
 		appsByHost:                map[string]*app{},
 		deploymentActivations:     map[string]*deploymentActivation{},
-		httpClient: &http.Client{
-			Timeout: time.Minute * 1,
-		},
 	}
 	var err error
 	a.dynamicProxy, err = tcp.NewDynamicProxy(
