@@ -141,7 +141,7 @@ spec:
       labels:
         app: nginx
       annotations:
-        osiris.deislabs.io/enabled: "true"
+        osiris.deislabs.io/collectMetrics: "true"
     # ...
   # ...
 ```
@@ -194,7 +194,7 @@ The following table lists the supported annotations for Kubernetes `Pods` and th
 
 | Annotation | Description | Default |
 | ---------- | ----------- | ------- |
-| `osiris.deislabs.io/enabled` | Enable the metrics collecting proxy sidecar container to be injected into this pod. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
+| `osiris.deislabs.io/collectMetrics` | Enable the metrics collecting proxy to be injected as a sidecar container into this pod. This is _required_ for metrics collection. Allowed values: `y`, `yes`, `true`, `on`, `1`. | _no value_ (= disabled) |
 | `osiris.deislabs.io/ignoredPaths` | The list of (url) paths that should be "ignored" by Osiris. Requests to such paths won't be "counted" by the proxy. Format: comma-separated string. | _no value_ |
 
 #### Service Annotations

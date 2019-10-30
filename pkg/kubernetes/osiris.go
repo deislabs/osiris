@@ -9,13 +9,24 @@ import (
 const (
 	IgnoredPathsAnnotationName         = "osiris.deislabs.io/ignoredPaths"
 	osirisEnabledAnnotationName        = "osiris.deislabs.io/enabled"
+	collectMetricsAnnotationName       = "osiris.deislabs.io/collectMetrics"
 	metricsCheckIntervalAnnotationName = "osiris.deislabs.io/metricsCheckInterval"
 )
 
 // ResourceIsOsirisEnabled checks the annotations to see if the
 // kube resource is enabled for osiris or not.
 func ResourceIsOsirisEnabled(annotations map[string]string) bool {
-	enabled, ok := annotations[osirisEnabledAnnotationName]
+	return annotationBooleanValue(annotations, osirisEnabledAnnotationName)
+}
+
+// PodIsEligibleForProxyInjection checks the annotations to see if the
+// pod is eligible for proxy injection or not.
+func PodIsEligibleForProxyInjection(annotations map[string]string) bool {
+	return annotationBooleanValue(annotations, collectMetricsAnnotationName)
+}
+
+func annotationBooleanValue(annotations map[string]string, key string) bool {
+	enabled, ok := annotations[key]
 	if !ok {
 		return false
 	}
