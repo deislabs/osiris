@@ -2,6 +2,7 @@ package zeroscaler
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"sync"
@@ -124,51 +125,66 @@ func (z *zeroscaler) syncDeletedDeployment(obj interface{}) {
 func (z *zeroscaler) ensureMetricsCollection(deployment *appsv1.Deployment) {
 	z.collectorsLock.Lock()
 	defer z.collectorsLock.Unlock()
+	metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
+		deployment.Annotations,
+	)
+	if err != nil {
+		glog.Warningf(
+			"There was an error getting custom metrics check interval value "+
+				"in deployment %s, falling back to the default value of %d "+
+				"seconds; error: %s",
+			deployment.Name,
+			z.cfg.MetricsCheckInterval,
+			err,
+		)
+		metricsCheckInterval = z.cfg.MetricsCheckInterval
+	}
+	if metricsCheckInterval <= 0 {
+		glog.Warningf(
+			"Invalid custom metrics check interval value %d in deployment %s,"+
+				" falling back to the default value of %d seconds",
+			metricsCheckInterval,
+			deployment.Name,
+			z.cfg.MetricsCheckInterval,
+		)
+		metricsCheckInterval = z.cfg.MetricsCheckInterval
+	}
+	config := metricsCollectorConfig{
+		deploymentName:      deployment.Name,
+		deploymentNamespace: deployment.Namespace,
+		selector: labels.SelectorFromSet(
+			deployment.Spec.Selector.MatchLabels,
+		),
+		scraperConfig:        getMetricsScraperConfig(deployment),
+		metricsCheckInterval: time.Duration(metricsCheckInterval) * time.Second,
+	}
 	key := getDeploymentKey(deployment)
-	selector := labels.SelectorFromSet(deployment.Spec.Selector.MatchLabels)
 	if collector, ok := z.collectors[key]; !ok ||
-		!reflect.DeepEqual(selector, collector.selector) {
+		!reflect.DeepEqual(config, collector.config) {
 		if ok {
 			collector.stop()
 		}
-		metricsCheckInterval, err := k8s.GetMetricsCheckInterval(
-			deployment.Annotations,
-		)
-		if err != nil {
-			glog.Warningf(
-				"There was an error getting custom metrics check interval value "+
-					"in deployment %s, falling back to the default value of %d "+
-					"seconds; error: %s",
-				deployment.Name,
-				z.cfg.MetricsCheckInterval,
-				err,
-			)
-			metricsCheckInterval = z.cfg.MetricsCheckInterval
-		}
-		if metricsCheckInterval <= 0 {
-			glog.Warningf(
-				"Invalid custom metrics check interval value %d in deployment %s,"+
-					" falling back to the default value of %d seconds",
-				metricsCheckInterval,
-				deployment.Name,
-				z.cfg.MetricsCheckInterval,
-			)
-			metricsCheckInterval = z.cfg.MetricsCheckInterval
-		}
+
 		glog.Infof(
 			"Using new metrics collector for deployment %s in namespace %s "+
-				"with metrics check interval of %d seconds",
+				"with scraper %s "+
+				"and check interval of %s",
 			deployment.Name,
 			deployment.Namespace,
-			metricsCheckInterval,
+			config.scraperConfig.ScraperName,
+			config.metricsCheckInterval.String(),
 		)
-		collector := newMetricsCollector(
-			z.kubeClient,
-			deployment.Name,
-			deployment.Namespace,
-			selector,
-			time.Duration(metricsCheckInterval)*time.Second,
-		)
+		collector, err := newMetricsCollector(z.kubeClient, config)
+		if err != nil {
+			glog.Errorf(
+				"Metrics collector for deployment %s in namespace %s can't run; "+
+					"error: %s",
+				deployment.Name,
+				deployment.Namespace,
+				err,
+			)
+			return
+		}
 		go func() {
 			collector.run(z.ctx)
 			// Once the collector has run to completion (scaled to zero) remove it
@@ -195,6 +211,27 @@ func (z *zeroscaler) ensureNoMetricsCollection(deployment *appsv1.Deployment) {
 		collector.stop()
 		delete(z.collectors, key)
 	}
+}
+
+func getMetricsScraperConfig(
+	deployment *appsv1.Deployment,
+) metricsScraperConfig {
+	rawConfig, found := deployment.Annotations[k8s.MetricsCollectorAnnotationName]
+	if !found {
+		return metricsScraperConfig{ScraperName: osirisScraperName}
+	}
+	var config metricsScraperConfig
+	if err := json.Unmarshal([]byte(rawConfig), &config); err != nil {
+		fmt.Printf(
+			"There was an error parsing metrics collector configuration "+
+				"from deployment %s, falling back to the default config; "+
+				"error: %s",
+			deployment.Name,
+			err,
+		)
+		return metricsScraperConfig{ScraperName: osirisScraperName}
+	}
+	return config
 }
 
 func getDeploymentKey(deployment *appsv1.Deployment) string {

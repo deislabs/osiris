@@ -3,14 +3,10 @@ package zeroscaler
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"io/ioutil"
-	"net/http"
 	"sync"
 	"time"
 
 	k8s "github.com/deislabs/osiris/pkg/kubernetes"
-	"github.com/deislabs/osiris/pkg/metrics"
 	"github.com/golang/glog"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/labels"
@@ -19,52 +15,45 @@ import (
 	"k8s.io/client-go/tools/cache"
 )
 
-const (
-	proxyContainerName = "osiris-proxy"
-	proxyPortName      = "osiris-metrics"
-)
-
-type metricsCollector struct {
-	kubeClient           kubernetes.Interface
+type metricsCollectorConfig struct {
 	deploymentName       string
 	deploymentNamespace  string
 	selector             labels.Selector
 	metricsCheckInterval time.Duration
-	podsInformer         cache.SharedIndexInformer
-	currentAppPods       map[string]*corev1.Pod
-	allAppPodStats       map[string]*podStats
-	appPodsLock          sync.Mutex
-	httpClient           *http.Client
-	cancelFunc           func()
+	scraperConfig        metricsScraperConfig
+}
+
+type metricsCollector struct {
+	config         metricsCollectorConfig
+	scraper        metricsScraper
+	kubeClient     kubernetes.Interface
+	podsInformer   cache.SharedIndexInformer
+	currentAppPods map[string]*corev1.Pod
+	allAppPodStats map[string]*podStats
+	appPodsLock    sync.Mutex
+	cancelFunc     func()
 }
 
 func newMetricsCollector(
 	kubeClient kubernetes.Interface,
-	deploymentName string,
-	deploymentNamespace string,
-	selector labels.Selector,
-	metricsCheckInterval time.Duration,
-) *metricsCollector {
+	config metricsCollectorConfig,
+) (*metricsCollector, error) {
+	s, err := newMetricsScraper(config.scraperConfig)
+	if err != nil {
+		return nil, err
+	}
 	m := &metricsCollector{
-		kubeClient:           kubeClient,
-		deploymentName:       deploymentName,
-		deploymentNamespace:  deploymentNamespace,
-		selector:             selector,
-		metricsCheckInterval: metricsCheckInterval,
+		config:     config,
+		scraper:    s,
+		kubeClient: kubeClient,
 		podsInformer: k8s.PodsIndexInformer(
 			kubeClient,
-			deploymentNamespace,
+			config.deploymentNamespace,
 			nil,
-			selector,
+			config.selector,
 		),
 		currentAppPods: map[string]*corev1.Pod{},
 		allAppPodStats: map[string]*podStats{},
-		// A very aggressive timeout. When collecting metrics, we want to do it very
-		// quickly to minimize the possibility that some pods we've checked on have
-		// served requests while we've been checking on OTHER pods.
-		httpClient: &http.Client{
-			Timeout: 2 * time.Second,
-		},
 	}
 	m.podsInformer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: m.syncAppPod,
@@ -73,7 +62,7 @@ func newMetricsCollector(
 		},
 		DeleteFunc: m.syncDeletedAppPod,
 	})
-	return m
+	return m, nil
 }
 
 func (m *metricsCollector) run(ctx context.Context) {
@@ -83,14 +72,14 @@ func (m *metricsCollector) run(ctx context.Context) {
 		<-ctx.Done()
 		glog.Infof(
 			"Stopping metrics collection for deployment %s in namespace %s",
-			m.deploymentName,
-			m.deploymentNamespace,
+			m.config.deploymentName,
+			m.config.deploymentNamespace,
 		)
 	}()
 	glog.Infof(
 		"Starting metrics collection for deployment %s in namespace %s",
-		m.deploymentName,
-		m.deploymentNamespace,
+		m.config.deploymentName,
+		m.config.deploymentNamespace,
 	)
 	go m.podsInformer.Run(ctx.Done())
 	// When this exits, the cancel func will stop the informer
@@ -123,7 +112,7 @@ func (m *metricsCollector) syncDeletedAppPod(obj interface{}) {
 }
 
 func (m *metricsCollector) collectMetrics(ctx context.Context) {
-	ticker := time.NewTicker(m.metricsCheckInterval)
+	ticker := time.NewTicker(m.config.metricsCheckInterval)
 	defer ticker.Stop()
 	var periodStartTime, periodEndTime *time.Time
 	for {
@@ -146,28 +135,19 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 				// Get metrics for all of the deployment's CURRENT pods.
 				var scrapeWG sync.WaitGroup
 				for _, pod := range m.currentAppPods {
-					podMetricsPort, ok := getMetricsPort(pod)
-					if !ok {
-						continue
-					}
-					url := fmt.Sprintf(
-						"http://%s:%d/metrics",
-						pod.Status.PodIP,
-						podMetricsPort,
-					)
 					scrapeWG.Add(1)
-					go func(podName string) {
+					go func(pod *corev1.Pod) {
 						defer scrapeWG.Done()
 						// Get the results
-						pcs, ok := m.scrape(url)
-						if ok {
-							ps := m.allAppPodStats[podName]
+						pcs := m.scraper.Scrap(pod)
+						if pcs != nil {
+							ps := m.allAppPodStats[pod.Name]
 							ps.prevStatTime = ps.recentStatTime
 							ps.prevStats = ps.recentStats
 							ps.recentStatTime = periodEndTime
-							ps.recentStats = &pcs
+							ps.recentStats = pcs
 						}
-					}(pod.Name)
+					}(pod)
 				}
 				// Wait until we're done checking all pods.
 				scrapeWG.Wait()
@@ -226,64 +206,11 @@ func (m *metricsCollector) collectMetrics(ctx context.Context) {
 	}
 }
 
-func getMetricsPort(pod *corev1.Pod) (int32, bool) {
-	for _, c := range pod.Spec.Containers {
-		if c.Name == proxyContainerName && len(c.Ports) > 0 {
-			for _, port := range c.Ports {
-				if port.Name == proxyPortName {
-					return port.ContainerPort, true
-				}
-			}
-		}
-	}
-	return 0, false
-}
-
-func (m *metricsCollector) scrape(
-	target string,
-) (metrics.ProxyConnectionStats, bool) {
-	pcs := metrics.ProxyConnectionStats{}
-	// Requests made with this client time out after 2 seconds
-	resp, err := m.httpClient.Get(target)
-	if err != nil {
-		glog.Errorf("Error requesting metrics from %s: %s", target, err)
-		return pcs, false
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		glog.Errorf(
-			"Received unexpected HTTP response code %d when requesting metrics "+
-				"from %s",
-			resp.StatusCode,
-			target,
-		)
-		return pcs, false
-	}
-	bodyBytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		glog.Errorf(
-			"Error reading metrics request response from %s: %s",
-			target,
-			err,
-		)
-		return pcs, false
-	}
-	if err := json.Unmarshal(bodyBytes, &pcs); err != nil {
-		glog.Errorf(
-			"Error umarshaling metrics request response from %s: %s",
-			target,
-			err,
-		)
-		return pcs, false
-	}
-	return pcs, true
-}
-
 func (m *metricsCollector) scaleToZero() {
 	glog.Infof(
 		"Scale to zero starting for deployment %s in namespace %s",
-		m.deploymentName,
-		m.deploymentNamespace,
+		m.config.deploymentName,
+		m.config.deploymentNamespace,
 	)
 
 	patches := []k8s.PatchOperation{{
@@ -292,15 +219,17 @@ func (m *metricsCollector) scaleToZero() {
 		Value: 0,
 	}}
 	patchesBytes, _ := json.Marshal(patches)
-	if _, err := m.kubeClient.AppsV1().Deployments(m.deploymentNamespace).Patch(
-		m.deploymentName,
+	if _, err := m.kubeClient.AppsV1().Deployments(
+		m.config.deploymentNamespace,
+	).Patch(
+		m.config.deploymentName,
 		k8s_types.JSONPatchType,
 		patchesBytes,
 	); err != nil {
 		glog.Errorf(
 			"Error scaling deployment %s in namespace %s to zero: %s",
-			m.deploymentName,
-			m.deploymentNamespace,
+			m.config.deploymentName,
+			m.config.deploymentNamespace,
 			err,
 		)
 		return
@@ -308,7 +237,7 @@ func (m *metricsCollector) scaleToZero() {
 
 	glog.Infof(
 		"Scaled deployment %s in namespace %s to zero",
-		m.deploymentName,
-		m.deploymentNamespace,
+		m.config.deploymentName,
+		m.config.deploymentNamespace,
 	)
 }
