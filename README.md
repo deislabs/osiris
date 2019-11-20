@@ -243,7 +243,7 @@ It is a specific goal of Osiris to enable greater resource efficiency within
 Kubernetes clusters, in general, but especially with respect to "nodeless"
 Kubernetes options such as
 [Virtual Kubelet](https://github.com/virtual-kubelet/virtual-kubelet) or
-[Azure Kubernetes Service Virtual Nodes preview](https://docs.microsoft.com/en-us/azure/aks/virtual-nodes-portal), however,
+[Azure Kubernetes Service Virtual Nodes](https://docs.microsoft.com/en-us/azure/aks/virtual-nodes-portal), however,
 due to known issues with those technologies, Osiris remains incompatible with
 them for the near term.
 
