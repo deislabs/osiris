@@ -34,7 +34,7 @@ ifneq ($(SKIP_DOCKER),true)
 		-v $(PROJECT_ROOT):/go/src/$(BASE_PACKAGE_NAME) \
 		-w /go/src/$(BASE_PACKAGE_NAME) $(DEV_IMAGE)
 
-	HELM_IMAGE := quay.io/deis/acr-publishing-tools:v0.1.0
+	HELM_IMAGE := quay.io/deis/acr-publishing-tools:v0.2.0
 	DOCKER_HELM_CMD := docker run \
 		--rm \
 		-v $(PROJECT_ROOT):/go/src/$(BASE_PACKAGE_NAME) \
