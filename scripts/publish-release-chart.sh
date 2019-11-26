@@ -13,12 +13,10 @@ rm -rf /tmp/osiris
 cp -r -L chart/osiris /tmp
 cd /tmp/osiris
 
-sed -i "s/^version:.*/version: $SIMPLE_REL_VERSION/g" Chart.yaml
-sed -i "s/^appVersion:.*/appVersion: $SIMPLE_REL_VERSION/g" Chart.yaml
 sed -i "s/^  tag:.*/  tag: $REL_VERSION/g" values.yaml
 sed -i "s/^  pullPolicy:.*/  pullPolicy: IfNotPresent/g" values.yaml
 
 helm dep build .
-helm package .
+helm package --version $SIMPLE_REL_VERSION --app-version $SIMPLE_REL_VERSION .
 
 az acr helm push -n osiris osiris-$SIMPLE_REL_VERSION.tgz
