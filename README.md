@@ -78,8 +78,8 @@ For more details on initializing helm, Go [here](https://docs.helm.sh/helm/#helm
 
 ```
 helm repo add osiris https://osiris.azurecr.io/helm/v1/repo \
-  --username eae9749a-fccf-4a24-ac0d-6506fe2a6ab3 \
-  --password =s-e.2-84BhIo6LM6=/l4C_sFzxb=sT[
+  --username="eae9749a-fccf-4a24-ac0d-6506fe2a6ab3" \
+  --password="=s-e.2-84BhIo6LM6=/l4C_sFzxb=sT["
 ```
 
 Installation requires use of the `--devel` flag to indicate pre-release versions
