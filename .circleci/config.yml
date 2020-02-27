@@ -9,7 +9,7 @@ base-go-job: &base-go-job
 
 base-docker-job: &base-docker-job
   docker:
-    - image: quay.io/deis/acr-publishing-tools:v0.1.0
+    - image: quay.io/deis/acr-publishing-tools:v0.2.0
   environment:
     SKIP_DOCKER: true
   working_directory: /go/src/github.com/deislabs/osiris
