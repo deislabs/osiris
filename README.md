@@ -94,6 +94,15 @@ helm install osiris/osiris-edge \
   --devel
 ```
 
+For helm v3;
+
+```
+kubectl create namespace osiris-system
+helm install osiris osiris/osiris-edge \
+  --namespace osiris-system \
+  --devel
+```
+
 #### Installation Options
 
 Osiris global configuration is minimal - because most of it will be done by the users
@@ -110,6 +119,16 @@ Example of installation with Helm and a custom configuration:
 ```
 helm install osiris/osiris-edge \
   --name osiris \
+  --namespace osiris-system \
+  --devel \
+  --set zeroscaler.metricsCheckInterval=600
+```
+
+For helm v3;
+
+```
+kubectl create namespace osiris-system
+helm install osiris osiris/osiris-edge \
   --namespace osiris-system \
   --devel \
   --set zeroscaler.metricsCheckInterval=600
