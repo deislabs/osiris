@@ -61,7 +61,7 @@ Cluster Autoscaler:
 
 Prerequisites:
 
-* [Helm](https://docs.helm.sh/using_helm/#installing-helm) (v2.11.0 or greater)
+* [Helm](https://docs.helm.sh/using_helm/#installing-helm) (v3.0.0 or greater)
 * A running Kubernetes cluster.
 
 ### Installation
@@ -88,15 +88,6 @@ command install the latest version of Osiris with the default values for all
 options - see the next section for all available installation options.
 
 ```
-helm install osiris/osiris-edge \
-  --name osiris \
-  --namespace osiris-system \
-  --devel
-```
-
-For helm v3;
-
-```
 kubectl create namespace osiris-system
 helm install osiris osiris/osiris-edge \
   --namespace osiris-system \
@@ -115,16 +106,6 @@ The following table lists the configurable parameters of the Helm chart and thei
 | `zeroscaler.metricsCheckInterval` | The interval in which the zeroScaler would repeatedly track the pod http request metrics. The value is the number of seconds of the interval. Note that this can also be set on a per-deployment basis, with an annotation. | `150` |
 
 Example of installation with Helm and a custom configuration:
-
-```
-helm install osiris/osiris-edge \
-  --name osiris \
-  --namespace osiris-system \
-  --devel \
-  --set zeroscaler.metricsCheckInterval=600
-```
-
-For helm v3;
 
 ```
 kubectl create namespace osiris-system
