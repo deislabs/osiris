@@ -61,7 +61,7 @@ Cluster Autoscaler:
 
 Prerequisites:
 
-* [Helm](https://docs.helm.sh/using_helm/#installing-helm) (v2.11.0 or greater)
+* [Helm](https://docs.helm.sh/using_helm/#installing-helm) (v3.0.0 or greater)
 * A running Kubernetes cluster.
 
 ### Installation
@@ -88,8 +88,8 @@ command install the latest version of Osiris with the default values for all
 options - see the next section for all available installation options.
 
 ```
-helm install osiris/osiris-edge \
-  --name osiris \
+kubectl create namespace osiris-system
+helm install osiris osiris/osiris-edge \
   --namespace osiris-system \
   --devel
 ```
@@ -108,8 +108,8 @@ The following table lists the configurable parameters of the Helm chart and thei
 Example of installation with Helm and a custom configuration:
 
 ```
-helm install osiris/osiris-edge \
-  --name osiris \
+kubectl create namespace osiris-system
+helm install osiris osiris/osiris-edge \
   --namespace osiris-system \
   --devel \
   --set zeroscaler.metricsCheckInterval=600
