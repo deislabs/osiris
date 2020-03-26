@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strconv"
 	"sync"
 
 	"github.com/deislabs/osiris/pkg/kubernetes"
@@ -16,6 +17,14 @@ import (
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/tools/cache"
 	endpointsv1 "k8s.io/kubernetes/pkg/api/v1/endpoints"
+)
+
+const (
+
+	// tolerateAnnoration backport annotation
+	// TolerateUnreadyEndpointsAnnotation definition from
+	// k8s.io/kubernetes/pkg/controller/endpoint
+	tolerateAnnoration = "service.alpha.kubernetes.io/tolerate-unready-endpoints"
 )
 
 // endpointsManager is a controller responsible for the on-going management of
@@ -126,6 +135,27 @@ func (e *endpointsManager) syncAppPod(obj interface{}) {
 			}
 			break
 		}
+	}
+
+	// If the user specified the older (deprecated) annotation,
+	// we have to respect it.
+	tolerateUnreadyEndpoints := e.service.Spec.PublishNotReadyAddresses
+	v, ok := e.service.Annotations[tolerateAnnoration]
+	if ok {
+		b, err := strconv.ParseBool(v)
+		if err == nil {
+			tolerateUnreadyEndpoints = b
+		} else {
+			glog.Errorf(
+				"Failed to parse annotation %v: %v",
+				tolerateAnnoration,
+				err,
+			)
+		}
+	}
+
+	if !tolerateUnreadyEndpoints && pod.DeletionTimestamp != nil {
+		ready = false
 	}
 	glog.Infof(
 		"Informed about pod %s for service %s in namespace %s; its IP is %s and "+
